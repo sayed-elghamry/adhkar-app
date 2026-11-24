@@ -138,6 +138,13 @@ public class ReminderPlugin extends Plugin {
         call.resolve(r);
     }
 
+    @PluginMethod
+    public void openUrl(PluginCall call) {
+        String url = call.getString("url", "");
+        if (url.startsWith("https://")) start(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        call.resolve();
+    }
+
     private void openNotificationSettingsInternal() {
         Intent i;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -177,6 +184,11 @@ public class ReminderPlugin extends Plugin {
         r.put("ignoringBattery", pm != null && pm.isIgnoringBatteryOptimizations(c.getPackageName()));
         r.put("manufacturer", Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase());
         r.put("sdk", Build.VERSION.SDK_INT);
+        try {
+            android.content.pm.PackageInfo pi = c.getPackageManager().getPackageInfo(c.getPackageName(), 0);
+            r.put("versionCode", Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode);
+            r.put("versionName", pi.versionName);
+        } catch (Exception ignored) {}
         return r;
     }
 }

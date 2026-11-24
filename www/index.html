@@ -338,6 +338,7 @@ function renderHome(){
   var target=S.targets[cur.id]||cur.target;
   var n=todayCounts()[cur.id]||0;
   view.innerHTML=
+   (UPD?'<div class="card banner" style="background:var(--green)"><div class="row"><span>نسخة جديدة من التطبيق متاحة ('+esc(UPD.name)+')</span><button id="getUpd">تحميل</button></div></div>':'')+
    (NATIVE&&S.settings.hourly&&!setupOk()?'<div class="card banner"><div class="row"><span>لضمان وصول التذكير والهاتف مقفل، أكمل الإعداد (دقيقة واحدة).</span><button id="fixSetup">أكمل الإعداد</button></div></div>':'')+
    '<div class="card"><div class="chips" id="chips">'+COUNTER_TYPES.map(function(t){return '<button class="chip '+(t.id===cur.id?'on':'')+'" data-id="'+t.id+'">'+esc(t.s)+'</button>'}).join('')+'</div>'+
    '<div class="big">'+ring(n/target)+'<button class="tap" id="tap" aria-label="عدّ"><span class="n" id="cnt">'+ar(n)+'</span><span class="lbl">'+esc(cur.t)+'</span></button></div>'+
@@ -345,6 +346,7 @@ function renderHome(){
    '<div class="card stats"><div><b>'+ar(totalToday())+'</b><span>إجمالي اليوم</span></div><div><b>'+ar(grand(cur.id))+'</b><span>إجمالي «'+esc(cur.s)+'»</span></div><div><b>'+ar(streak())+'</b><span>أيام متتالية</span></div></div>'+
    '<div class="card"><div class="ayah">﴿ إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ يَا أَيُّهَا الَّذِينَ آمَنُوا صَلُّوا عَلَيْهِ وَسَلِّمُوا تَسْلِيمًا ﴾</div></div>'+
    '<div class="card"><div class="row"><span class="sub" id="nextTxt">'+esc(nextReminderText())+'</span><button class="ghost" id="testRem">جرّب التنبيه</button></div></div>';
+  if($('getUpd'))$('getUpd').onclick=function(){Reminder.openUrl({url:UPD.url})};
   if($('fixSetup'))$('fixSetup').onclick=function(){go('settings')};
   Array.prototype.forEach.call(view.querySelectorAll('.chip'),function(b){b.onclick=function(){S.sel=b.getAttribute('data-id');persist();renderHome()}});
   $('tap').onclick=function(){
@@ -447,6 +449,7 @@ function renderSettings(){
     (NATIVE?'':'<div class="sw"><span>إشعارات المتصفح (إن سمح بها)</span><input type="checkbox" id="sNotif" '+(s.notif?'checked':'')+'></div>')+
    '</div>'+
    (NATIVE?'':'<div class="card sub" style="line-height:1.9"><b style="color:var(--ink)">ملاحظة</b><br>في المتصفح يعمل التنبيه ما دامت الصفحة مفتوحة. ثبّت تطبيق أندرويد ليصلك والهاتف مقفل.</div>')+
+   (NATIVE&&NS&&NS.versionName?'<div class="card"><div class="row"><span>إصدار التطبيق: '+esc(NS.versionName)+'</span><button class="ghost" id="chkUpd">'+(UPD?'تحميل النسخة الجديدة':'التحقق من التحديث')+'</button></div></div>':'')+
    '<div class="card"><div class="row"><span>مسح بيانات العدّاد</span><button class="ghost" id="wipe">مسح</button></div></div>';
   view.innerHTML=html;
 
@@ -461,6 +464,11 @@ function renderSettings(){
     $('fixExact').onclick=function(){Reminder.openExactAlarmSettings().catch(function(){})};
     $('fixBatt').onclick=function(){Reminder.requestIgnoreBattery().catch(function(){})};
     $('openAuto').onclick=function(){Reminder.openAutostart().catch(function(){})};
+    if($('chkUpd'))$('chkUpd').onclick=function(){
+      if(UPD){Reminder.openUrl({url:UPD.url});return}
+      var b=this;b.textContent='جارٍ التحقق…';checkUpdate(true);
+      setTimeout(function(){if(!UPD)b.textContent='لديك أحدث نسخة ✓';else rerenderSettings()},2500);
+    };
     $('openNotifSet').onclick=function(){Reminder.openNotificationSettings().catch(function(){})};
   }else{
     $('sNotif').onchange=function(){
@@ -480,11 +488,31 @@ document.addEventListener('visibilitychange',function(){
   else if(tab==='home')renderHome(); // تحديث العدّاد عند بداية يوم جديد
 });
 
+/* ---------- التحقق من وجود نسخة جديدة (مرة يوميًا) ---------- */
+var UPD=null, RELEASES='https://api.github.com/repos/sayed-elghamry/adhkar-app/releases/latest';
+function checkUpdate(force){
+  if(!NATIVE||!NS||!NS.versionCode)return;
+  var last=+(sGet('upd.last')||0);
+  var cached=load('upd.info',null);
+  function apply(info){
+    if(info&&info.n>NS.versionCode){UPD=info;if(tab==='home')renderHome()}
+  }
+  if(!force&&Date.now()-last<6*3600e3){apply(cached);return}
+  fetch(RELEASES,{headers:{'Accept':'application/vnd.github+json'}}).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(!j||!j.tag_name)return;
+    var m=/(\d+)$/.exec(j.tag_name);if(!m)return;
+    var a=(j.assets||[]).filter(function(x){return /\.apk$/.test(x.name)})[0];
+    var info={n:+m[1],name:j.name||j.tag_name,url:a?a.browser_download_url:j.html_url};
+    sSet('upd.last',String(Date.now()));save('upd.info',info);apply(info);
+  }).catch(function(){apply(cached)});
+}
+
 /* ---------- البدء ---------- */
 render();tick();
 if(NATIVE){
   syncNative().then(function(){
     render();
+    checkUpdate(false);
     // أول تشغيل: اطلب إذن الإشعارات مباشرة
     if(NS&&!NS.notifications&&!S.askedNotif){
       S.askedNotif=true;persist();

@@ -28,7 +28,7 @@ import java.util.Random;
 public final class ReminderScheduler {
 
     /** غيّر هذا الرقم عند استبدال ملف الصوت res/raw/salawat.mp3، لأن أندرويد يثبّت صوت القناة عند إنشائها. */
-    public static final int SOUND_VERSION = 1;
+    public static final int SOUND_VERSION = 2;
     public static final String CHANNEL_ID = "salawat_reminder_v" + SOUND_VERSION;
     public static final String ACTION_FIRE = "com.adhkar.salawat.action.HOURLY_REMINDER";
 

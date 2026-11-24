@@ -283,12 +283,16 @@ function tick(){
     S.lastHour=key;persist();
     showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
   }
+  var hk=key+'h';
+  if(S.settings.half!==false&&d.getMinutes()===30&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
+    S.lastHour=hk;persist();showToast('أستغفر الله العظيم وأتوب إليه');
+  }
 }
 setInterval(tick,15000);
 
 function syncNative(){
   if(!Reminder)return Promise.resolve();
-  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud})
+  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false})
     .then(function(r){NS=r;return r}).catch(function(){});
 }
 function refreshNative(){
@@ -305,7 +309,7 @@ function nextReminderText(){
   if(!S.settings.hourly)return 'التذكير الساعي متوقف';
   if(NATIVE){
     if(NS&&!NS.notifications)return 'الإشعارات غير مسموح بها، افتح الإعدادات لتفعيلها';
-    if(NS&&NS.nextAt)return 'التذكير القادم: '+fmtTime(NS.nextAt);
+    if(NS&&NS.nextAt)return 'التذكير القادم'+(NS.nextIstighfar?' (أستغفر الله)':' (الصلاة على النبي ﷺ)')+': '+fmtTime(NS.nextAt);
     return 'التذكير الساعي مفعّل';
   }
   var d=new Date(),m=60-d.getMinutes();
@@ -501,10 +505,11 @@ function renderSettings(){
   var html=
    '<div class="card"><b style="font-size:18px">التذكير بالصلاة على النبي ﷺ</b>'+
     '<div class="sw"><span>تذكير كل ساعة</span><input type="checkbox" id="sHourly" '+(s.hourly?'checked':'')+'></div>'+
+    '<div class="sw"><span>«أستغفر الله» على رأس كل نصف ساعة<small class="sub" style="display:block">الصلاة على النبي ﷺ أول الساعة، والاستغفار عند الدقيقة ٣٠</small></span><input type="checkbox" id="sHalf" '+(s.half!==false?'checked':'')+'></div>'+
     '<div class="sw"><span>من الساعة</span><select id="sFrom">'+hourOpts(s.from)+'</select></div>'+
     '<div class="sw"><span>إلى الساعة</span><select id="sTo">'+hourOpts(s.to)+'</select></div>'+
     (NATIVE?'<div class="sw"><span>تشغيل الصوت حتى في الوضع الصامت<small class="sub" style="display:block">يُسمع على مستوى صوت المنبّه</small></span><input type="checkbox" id="sLoud" '+(s.loud?'checked':'')+'></div>':'')+
-    '<div class="sw"><span class="sub" id="nextTxt2">'+esc(nextReminderText())+'</span><button class="ghost" id="testRem2">جرّب التنبيه</button></div>'+
+    '<div class="sw"><span class="sub" id="nextTxt2">'+esc(nextReminderText())+'</span><span style="white-space:nowrap"><button class="ghost" id="testRem2">جرّب الصلاة</button> <button class="ghost" id="testIst">جرّب الاستغفار</button></span></div>'+
    '</div>';
   if(NATIVE){
     var n=NS||{};
@@ -534,6 +539,8 @@ function renderSettings(){
   function bind(id,key,after){$(id).onchange=function(){s[key]=this.checked;persist();if(after)after()}}
   bind('sHourly','hourly',function(){syncNative().then(rerenderSettings)});
   if($('sLoud'))bind('sLoud','loud',function(){syncNative()});
+  bind('sHalf','half',function(){syncNative().then(rerenderSettings)});
+  $('testIst').onclick=function(){unlockAudio();if(Reminder){Reminder.test({istighfar:true}).then(function(r){NS=r}).catch(function(){})}else{showToast('أستغفر الله العظيم وأتوب إليه')}};
   bind('sSound','sound');bind('sVib','vibrate');
   $('sFrom').onchange=function(){s.from=+this.value;persist();syncNative().then(rerenderSettings)};
   $('sTo').onchange=function(){s.to=+this.value;persist();syncNative().then(rerenderSettings)};

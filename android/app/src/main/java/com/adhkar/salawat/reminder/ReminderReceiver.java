@@ -11,6 +11,8 @@ public class ReminderReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (!ReminderScheduler.ACTION_FIRE.equals(intent.getAction())) return;
+        final PendingResult pr = goAsync();
+        boolean shown = false;
         if (ReminderScheduler.isEnabled(context)) {
             long scheduled = ReminderScheduler.nextAt(context);
             long late = System.currentTimeMillis() - scheduled;
@@ -19,9 +21,14 @@ public class ReminderReceiver extends BroadcastReceiver {
                 ReminderScheduler.fromHour(context), ReminderScheduler.toHour(context));
             // لا نُظهر تذكيرًا متأخرًا جدًا (مثلًا بعد خروج الهاتف من سبات طويل)
             if (scheduled == 0L || (late < 30 * 60_000L && (inWin || late < 10 * 60_000L))) {
-                ReminderScheduler.showNow(context);
+                shown = true;
+                ReminderScheduler.reschedule(context);
+                ReminderScheduler.showNow(context, false, pr::finish);
             }
         }
-        ReminderScheduler.reschedule(context);
+        if (!shown) {
+            ReminderScheduler.reschedule(context);
+            pr.finish();
+        }
     }
 }

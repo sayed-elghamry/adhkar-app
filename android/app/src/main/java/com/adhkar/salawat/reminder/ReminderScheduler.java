@@ -7,7 +7,6 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 
@@ -28,7 +27,7 @@ import java.util.Random;
 public final class ReminderScheduler {
 
     /** غيّر هذا الرقم عند استبدال ملف الصوت res/raw/salawat.mp3، لأن أندرويد يثبّت صوت القناة عند إنشائها. */
-    public static final int SOUND_VERSION = 2;
+    public static final int SOUND_VERSION = 3;
     public static final String CHANNEL_ID = "salawat_reminder_v" + SOUND_VERSION;
     public static final String ACTION_FIRE = "com.adhkar.salawat.action.HOURLY_REMINDER";
 
@@ -38,6 +37,7 @@ public final class ReminderScheduler {
     static final String K_TO = "to";
     static final String K_NEXT = "nextAt";
     static final String K_LAST = "lastFiredAt";
+    static final String K_SILENT = "playInSilent";
 
     private static final int REQ_ALARM = 7001;
     private static final int NOTIF_ID = 7002;
@@ -59,6 +59,8 @@ public final class ReminderScheduler {
     public static boolean isEnabled(Context c) { return prefs(c).getBoolean(K_ENABLED, true); }
     public static int fromHour(Context c) { return prefs(c).getInt(K_FROM, 5); }
     public static int toHour(Context c) { return prefs(c).getInt(K_TO, 23); }
+    public static boolean playInSilent(Context c) { return prefs(c).getBoolean(K_SILENT, false); }
+    public static void setPlayInSilent(Context c, boolean v) { prefs(c).edit().putBoolean(K_SILENT, v).apply(); }
     public static long nextAt(Context c) { return prefs(c).getLong(K_NEXT, 0L); }
 
     public static void saveSettings(Context c, boolean enabled, int from, int to) {
@@ -138,11 +140,8 @@ public final class ReminderScheduler {
         NotificationChannel ch = new NotificationChannel(CHANNEL_ID,
             "التذكير بالصلاة على النبي ﷺ", NotificationManager.IMPORTANCE_HIGH);
         ch.setDescription("تذكير كل ساعة بصوت الصلاة على النبي ﷺ");
-        AudioAttributes aa = new AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build();
-        ch.setSound(soundUri(c), aa);
+        // القناة بلا صوت: الصوت يشغّله SoundPlayer مباشرة حتى لا تكتمه إعدادات الهاتف
+        ch.setSound(null, null);
         ch.enableVibration(true);
         ch.setVibrationPattern(new long[]{0, 250, 150, 250});
         ch.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
@@ -153,7 +152,9 @@ public final class ReminderScheduler {
         return Uri.parse("android.resource://" + c.getPackageName() + "/" + R.raw.salawat);
     }
 
-    public static void showNow(Context c) {
+    public static void showNow(Context c) { showNow(c, false, null); }
+
+    public static void showNow(Context c, boolean forceSound, Runnable onDone) {
         ensureChannel(c);
         String text = SALAWAT[new Random().nextInt(SALAWAT.length)];
         Intent open = new Intent(c, MainActivity.class)
@@ -168,7 +169,7 @@ public final class ReminderScheduler {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSound(soundUri(c))              // لأندرويد 7 وما قبله
+            .setSilent(false)
             .setVibrate(new long[]{0, 250, 150, 250})
             .setAutoCancel(true)
             .setContentIntent(content);
@@ -178,5 +179,6 @@ public final class ReminderScheduler {
             // إذن الإشعارات غير ممنوح
         }
         prefs(c).edit().putLong(K_LAST, System.currentTimeMillis()).apply();
+        SoundPlayer.play(c, forceSound, onDone);
     }
 }

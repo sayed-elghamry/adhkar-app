@@ -40,6 +40,7 @@ public class ReminderPlugin extends Plugin {
         int from = call.getInt("from", ReminderScheduler.fromHour(c));
         int to = call.getInt("to", ReminderScheduler.toHour(c));
         ReminderScheduler.saveSettings(c, enabled, from, to);
+        if (call.hasOption("playInSilent")) ReminderScheduler.setPlayInSilent(c, call.getBoolean("playInSilent", false));
         ReminderScheduler.reschedule(c);
         call.resolve(status());
     }
@@ -52,7 +53,7 @@ public class ReminderPlugin extends Plugin {
 
     @PluginMethod
     public void test(PluginCall call) {
-        ReminderScheduler.showNow(getContext());
+        ReminderScheduler.showNow(getContext(), true, null);
         call.resolve(status());
     }
 
@@ -178,6 +179,7 @@ public class ReminderPlugin extends Plugin {
         r.put("from", ReminderScheduler.fromHour(c));
         r.put("to", ReminderScheduler.toHour(c));
         r.put("nextAt", ReminderScheduler.nextAt(c));
+        r.put("playInSilent", ReminderScheduler.playInSilent(c));
         r.put("notifications", NotificationManagerCompat.from(c).areNotificationsEnabled());
         r.put("exactAlarms", ReminderScheduler.canScheduleExact(c));
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);

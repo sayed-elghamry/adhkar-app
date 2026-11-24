@@ -47,8 +47,8 @@ const CSS = `
 .q-res .r{padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
 .q-res .r .t{font-family:'KFGQPC HAFS Uthmanic Script',serif;font-size:20px;line-height:1.9}
 .q-res .r .m{font-size:12px;color:var(--muted)}
-.q-tabs{display:flex;gap:6px;margin:6px 0}
-.q-tabs button{flex:1}
+.q-tabs{display:flex;gap:5px;margin:6px 0;flex-wrap:wrap}
+.q-tabs button{flex:1;padding:8px 4px;font-size:13px}
 .q-juz{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .q-juz button{padding:10px 0}
 .q-credit{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.7}
@@ -170,6 +170,12 @@ function renderIndex(m) {
     let b = '';
     for (let j = 1; j <= m.juzCount; j++) b += '<button class="q-btn" data-p="' + m.juz(j).page.number + '">' + AR(j) + '</button>';
     body = '<div class="card"><div class="sub" style="margin-bottom:8px">اختر الجزء</div><div class="q-juz">' + b + '</div></div>';
+  } else if (idxTab === 'sham') {
+    const sh = SH();
+    body = '<div class="card"><b>مصحف الشمرلي (صور الصفحات)</b>' +
+      '<div class="sub" style="line-height:1.9;margin:6px 0">تُعرض الصفحات من نسخة على موقع archive.org، فتحتاج اتصالًا بالإنترنت عند فتح كل صفحة أول مرة، ثم تُحفظ مؤقتًا في الهاتف. للاستخدام الشخصي.</div>' +
+      '<button class="pri" id="shOpen">' + (sh.leaf ? 'متابعة · ص ' + AR(sh.leaf - sh.off) : 'فتح المصحف') + '</button></div>' +
+      (sh.marks.length ? '<div class="card q-list">' + sh.marks.map((l) => '<div class="it" data-l="' + l + '"><span class="num">🔖</span><span class="nm">صفحة ' + AR(l - sh.off) + '</span></div>').join('') + '</div>' : '');
   } else if (idxTab === 'marks') {
     body = '<div class="card q-list">' + (q.marks.length ? q.marks.map((p) =>
       '<div class="it" data-p="' + p + '"><span class="num">🔖</span><span class="nm">' + esc(surahOfPage(m, p)) + '<small>الجزء ' + AR(m.page(p).juz.number) + '</small></span><span class="pg">ص ' + AR(p) + '</span></div>').join('')
@@ -181,12 +187,16 @@ function renderIndex(m) {
     '<div class="card"><div class="row"><b style="font-size:18px">المصحف الشريف</b>' +
       '<button class="pri" id="qCont">متابعة القراءة · ص ' + AR(q.page || 1) + '</button></div>' +
     '<div class="q-tabs">' +
-      [['surah', 'السور'], ['juz', 'الأجزاء'], ['search', 'بحث'], ['marks', 'العلامات']].map(([k, t]) =>
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['search', 'بحث'], ['marks', 'العلامات'], ['sham', 'الشمرلي']].map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
     '<div class="q-credit">نص المصحف برواية حفص عن عاصم من إصدار مجمع الملك فهد لطباعة المصحف الشريف (الخط العثماني، ترقيم مصحف المدينة)، عبر مكتبة quran-text (CC BY 4.0).</div>';
   ctx.view.querySelectorAll('.q-tabs button').forEach((b) => b.onclick = () => { idxTab = b.dataset.t; render(); });
   ctx.view.querySelectorAll('[data-p]').forEach((el) => el.onclick = () => { Q().page = +el.dataset.p; mode = 'page'; render(); window.scrollTo(0, 0); });
+  if (idxTab === 'sham') {
+    document.getElementById('shOpen').onclick = () => { mode = 'sham'; render(); window.scrollTo(0, 0); };
+    ctx.view.querySelectorAll('[data-l]').forEach((el) => el.onclick = () => { SH().leaf = +el.dataset.l; mode = 'sham'; render(); });
+  }
   document.getElementById('qCont').onclick = () => { mode = 'page'; render(); window.scrollTo(0, 0); };
   if (idxTab === 'search') {
     const inp = document.getElementById('qQ');
@@ -210,9 +220,87 @@ function renderIndex(m) {
   }
 }
 
+/* ---------------- مصحف الشمرلي (صور من archive.org) ---------------- */
+const SH_ID = '20191116_20191116_1655';
+const SH_LEAVES = 522;
+function SH() {
+  const q = Q();
+  q.sham = q.sham || { leaf: 0, off: 5, marks: [] };   // off: رقم الورقة قبل الصفحة ١ (قابل للضبط)
+  return q.sham;
+}
+function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
+function renderSham() {
+  const sh = SH();
+  if (!sh.leaf) sh.leaf = sh.off + 1;
+  const leaf = Math.max(0, Math.min(SH_LEAVES - 1, sh.leaf));
+  sh.leaf = leaf; ctx.persist();
+  const pageNo = leaf - sh.off;
+  const marked = sh.marks.indexOf(leaf) >= 0;
+  const w = Math.min(1600, Math.round(window.innerWidth * (window.devicePixelRatio || 2)));
+  ctx.view.innerHTML =
+    '<div class="q-top"><div class="q-bar">' +
+      '<button class="q-btn" id="qBack">☰</button>' +
+      '<div class="ttl">مصحف الشمرلي<small>الصفحة ' + AR(pageNo) + '</small></div>' +
+      '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
+    '</div></div>' +
+    '<div class="q-page" id="qPage" style="position:relative;padding:4px;min-height:60vh;display:flex;align-items:center;justify-content:center">' +
+      '<img id="shImg" alt="" style="width:100%;height:auto;display:block;border-radius:6px" src="' + shUrl(leaf, w) + '">' +
+      '<div id="shMsg" class="sub" style="position:absolute">جارٍ تحميل الصفحة…</div>' +
+    '</div>' +
+    '<div class="q-bar" style="margin-top:6px">' +
+      '<button class="q-btn" id="qNext">→ التالية</button>' +
+      '<button class="q-btn" id="qGo">انتقال</button>' +
+      '<button class="q-btn" id="shFix">ضبط الترقيم</button>' +
+      '<button class="q-btn" id="qPrev">السابقة ←</button>' +
+    '</div>';
+  const img = document.getElementById('shImg'), msg = document.getElementById('shMsg');
+  img.onload = () => { msg.remove(); };
+  img.onerror = () => {
+    if (!img.dataset.retry) { img.dataset.retry = '1'; img.src = shUrl(leaf, 0); return; }
+    msg.innerHTML = 'تعذّر تحميل الصفحة. تأكد من الاتصال بالإنترنت.<br><button class="q-btn" id="shRetry" style="margin-top:8px">إعادة المحاولة</button> <button class="q-btn" id="shWeb" style="margin-top:8px">فتح في المتصفح</button>';
+    document.getElementById('shRetry').onclick = () => renderSham();
+    document.getElementById('shWeb').onclick = () => {
+      const u = 'https://archive.org/details/' + SH_ID + '/page/n' + leaf + '/mode/1up';
+      const R = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Reminder;
+      if (R && R.openUrl) R.openUrl({ url: u }); else window.open(u, '_blank');
+    };
+  };
+  // تحميل مسبق للصفحتين التاليتين
+  [1, 2].forEach((d) => { if (leaf + d < SH_LEAVES) { const p = new Image(); p.src = shUrl(leaf + d, w); } });
+  const go = (d) => { const t = leaf + d; if (t >= 0 && t < SH_LEAVES) { sh.leaf = t; renderSham(); window.scrollTo(0, 0); } };
+  document.getElementById('qNext').onclick = () => go(1);
+  document.getElementById('qPrev').onclick = () => go(-1);
+  document.getElementById('qBack').onclick = () => { mode = 'index'; idxTab = 'sham'; render(); };
+  document.getElementById('qMark').onclick = () => {
+    const i = sh.marks.indexOf(leaf);
+    if (i >= 0) sh.marks.splice(i, 1); else sh.marks.unshift(leaf);
+    ctx.persist(); renderSham();
+  };
+  const num = (v) => parseInt(String(v).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)), 10);
+  document.getElementById('qGo').onclick = () => {
+    const t = num(prompt('رقم الصفحة', String(pageNo)) || '');
+    if (t >= 1 - sh.off && t + sh.off < SH_LEAVES) { sh.leaf = t + sh.off; renderSham(); window.scrollTo(0, 0); }
+  };
+  document.getElementById('shFix').onclick = () => {
+    const t = num(prompt('ما رقم هذه الصفحة المطبوع في المصحف؟', String(pageNo)) || '');
+    if (t >= 0 && t < SH_LEAVES) { sh.off = leaf - t; ctx.persist(); renderSham(); }
+  };
+  const pg = document.getElementById('qPage');
+  let x0 = null, y0 = null;
+  pg.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  pg.addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx > 0 ? 1 : -1);
+  });
+}
+
 function render() {
   if (!M) return;
-  if (mode === 'page') renderPage(M); else renderIndex(M);
+  if (mode === 'page') renderPage(M);
+  else if (mode === 'sham') renderSham();
+  else renderIndex(M);
 }
 
 export function show(c) {

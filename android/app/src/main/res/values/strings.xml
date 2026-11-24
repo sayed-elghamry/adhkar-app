@@ -4,4 +4,5 @@
     <string name="title_activity_main">أذكار</string>
     <string name="package_name">com.adhkar.salawat</string>
     <string name="custom_url_scheme">com.adhkar.salawat</string>
+    <string name="widget_desc">ذكر يتغير على الشاشة الرئيسية</string>
 </resources>

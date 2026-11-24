@@ -38,6 +38,33 @@
             android:name=".reminder.ReminderReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".reminder.PrayerScheduler$Receiver"
+            android:exported="false" />
+
+        <!-- ودجت الأذكار -->
+        <receiver
+            android:name=".reminder.AdhkarWidget"
+            android:label="أذكار"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/adhkar_widget_info" />
+        </receiver>
+
+        <!-- الفقاعة العائمة -->
+        <service
+            android:name=".reminder.BubbleService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Floating adhkar (remembrance) bubble shown over other apps at the user's request" />
+        </service>
+
         <!-- إعادة الجدولة بعد إعادة التشغيل / التحديث / تغيير الوقت / منح إذن المنبّهات -->
         <receiver
             android:name=".reminder.BootReceiver"
@@ -63,4 +90,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

@@ -10,5 +10,7 @@ public class BootReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         ReminderScheduler.ensureChannel(context);
         ReminderScheduler.reschedule(context);
+        PrayerScheduler.reschedule(context);
+        BubbleService.apply(context);
     }
 }

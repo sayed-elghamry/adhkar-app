@@ -102,6 +102,8 @@ nav button.on{color:var(--green);font-weight:700}
 <nav id="nav"></nav>
 
 <script src="capacitor.js"></script>
+<script src="adhan.umd.min.js"></script>
+<script src="prayer.js"></script>
 <script>
 (function(){
 'use strict';
@@ -320,12 +322,14 @@ function renderNav(){
   nav.innerHTML=TABS.map(function(t){return '<button data-t="'+t.id+'" class="'+(t.id===tab?'on':'')+'"><span class="ic">'+t.i+'</span>'+t.n+'</button>'}).join('');
   Array.prototype.forEach.call(nav.querySelectorAll('button'),function(b){b.onclick=function(){go(b.getAttribute('data-t'))}});
 }
-function go(t){tab=t;window.scrollTo(0,0);render()}
+function go(t){if(tab==='times'&&t!=='times'&&window.Prayer)Prayer.leave();tab=t;window.scrollTo(0,0);render()}
+function pctx(){return {S:S,persist:persist,view:view,R:Reminder}}
 
 function render(){
   renderNav();
   if(tab==='home')renderHome();
   else if(tab==='quran')renderQuran();
+  else if(tab==='times')renderTimes();
   else if(tab==='various')renderList('various',VARIOUS,'ذكر الله بصيغ متنوعة');
   else if(tab==='morning')renderList('morning',MORNING,'أذكار الصباح');
   else if(tab==='evening')renderList('evening',EVENING,'أذكار المساء');
@@ -333,9 +337,65 @@ function render(){
   else renderSettings();
 }
 
+function renderTimes(){
+  if(!window.Prayer||!window.adhan){view.innerHTML='<div class="card sub">تعذّر تحميل المواقيت</div>';return}
+  var c=pctx();c.after=function(){
+    if($('backHome'))return;
+    var b=document.createElement('div');b.className='card';b.innerHTML='<button class="ghost" id="backHome" style="width:100%">→ رجوع للرئيسية</button>';
+    view.insertBefore(b,view.firstChild);$('backHome').onclick=function(){go('home')};
+  };
+  Prayer.show(c);
+}
+
+/* ---------- أذكار الودجت والفقاعة ---------- */
+function displayPool(){
+  var a=[],seen={};
+  function add(t){t=String(t).trim();if(t&&!seen[t]){seen[t]=1;a.push(t)}}
+  SALAWAT.forEach(add);COUNTER_TYPES.forEach(function(x){add(x.t)});VARIOUS.forEach(function(x){add(x.t)});
+  return a;
+}
+function D(){S.display=S.display||{items:[SALAWAT[0],'سبحان الله وبحمده، سبحان الله العظيم','أستغفر الله العظيم وأتوب إليه','لا حول ولا قوة إلا بالله'],bubble:false,interval:60};return S.display}
+function syncDisplay(){
+  if(!Reminder||!Reminder.setAdhkarDisplay)return Promise.resolve();
+  var d=D();return Reminder.setAdhkarDisplay({items:d.items,bubble:!!d.bubble,interval:d.interval}).then(function(r){if(r)NS=Object.assign(NS||{},r);return r}).catch(function(){});
+}
+function displaySettingsHtml(){
+  var d=D(),pool=displayPool();
+  function sh(t){return t.length>60?t.slice(0,58)+'…':t}
+  var iv=[[30,'كل ٣٠ ثانية'],[60,'كل دقيقة'],[300,'كل ٥ دقائق'],[900,'كل ربع ساعة']];
+  return '<div class="card"><b style="font-size:18px">أذكار الودجت والفقاعة</b>'+
+   '<div class="sub" style="margin:6px 0">اختر الأذكار التي تظهر على الشاشة الرئيسية وفي الفقاعة الجانبية:</div>'+
+   pool.map(function(t,i){return '<label class="sw" style="cursor:pointer"><span style="font-size:15px">'+esc(sh(t))+'</span><input type="checkbox" class="dItem" data-i="'+i+'" '+(d.items.indexOf(t)>=0?'checked':'')+'></label>'}).join('')+
+   (NATIVE?
+    '<div class="sw"><span>فقاعة عائمة على جانب الشاشة<small class="sub" style="display:block">تظهر فوق كل التطبيقات. اسحبها لتحريكها، والمس مطوّلًا لتصغيرها.</small></span><input type="checkbox" id="dBubble" '+(d.bubble?'checked':'')+'></div>'+
+    (d.bubble&&NS&&NS.canDrawOverlays===false?'<div class="chk"><span class="dot">!</span><span class="tx">اسمح بـ«الظهور فوق التطبيقات»<small>فعّل المفتاح بجوار «أذكار» ثم ارجع.</small></span><button class="pri" id="dOverlay">سماح</button></div>':'')+
+    '<div class="sw"><span>تغيير الذكر</span><select id="dInt">'+iv.map(function(x){return '<option value="'+x[0]+'"'+(x[0]===d.interval?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></div>'+
+    '<div class="guide sub" style="margin-top:8px"><b>لإضافة الودجت للشاشة الرئيسية:</b><ol><li>المس مطوّلًا مكانًا فارغًا في الشاشة الرئيسية.</li><li>اختر «الأدوات» أو «Widgets».</li><li>ابحث عن «أذكار» واسحبه للشاشة.</li><li>المس الذكر في الودجت ليظهر الذكر التالي.</li></ol></div>'
+   :'<div class="sub">الودجت والفقاعة تعمل في تطبيق أندرويد فقط.</div>')+
+   '</div>';
+}
+function bindDisplaySettings(){
+  var d=D(),pool=displayPool();
+  Array.prototype.forEach.call(view.querySelectorAll('.dItem'),function(cb){cb.onchange=function(){
+    var t=pool[+cb.getAttribute('data-i')],k=d.items.indexOf(t);
+    if(cb.checked&&k<0)d.items.push(t);else if(!cb.checked&&k>=0)d.items.splice(k,1);
+    if(!d.items.length){d.items.push(SALAWAT[0])}
+    persist();syncDisplay();
+  }});
+  if($('dBubble'))$('dBubble').onchange=function(){
+    d.bubble=this.checked;persist();
+    syncDisplay().then(function(){
+      if(d.bubble&&NS&&NS.canDrawOverlays===false)Reminder.openOverlaySettings().catch(function(){});
+      rerenderSettings();
+    });
+  };
+  if($('dOverlay'))$('dOverlay').onclick=function(){Reminder.openOverlaySettings().catch(function(){})};
+  if($('dInt'))$('dInt').onchange=function(){d.interval=+this.value;persist();syncDisplay()};
+}
+
 var quranMod=null;
 function renderQuran(){
-  var c={S:S,persist:persist,view:view};
+  var c={S:S,persist:persist,view:view,R:Reminder};
   if(quranMod){quranMod.show(c);return}
   view.innerHTML='<div class="card sub" style="text-align:center;padding:30px">جارٍ تحميل المصحف…</div>';
   import('./quran.js').then(function(mod){quranMod=mod;if(tab==='quran')mod.show(c)})
@@ -359,6 +419,7 @@ function renderHome(){
    '<div class="row"><span class="sub">الهدف اليومي: <b>'+ar(target)+'</b></span><span><button class="ghost" id="tgt">تغيير الهدف</button> <button class="ghost" id="rst">تصفير</button></span></div></div>'+
    '<div class="card stats"><div><b>'+ar(totalToday())+'</b><span>إجمالي اليوم</span></div><div><b>'+ar(grand(cur.id))+'</b><span>إجمالي «'+esc(cur.s)+'»</span></div><div><b>'+ar(streak())+'</b><span>أيام متتالية</span></div></div>'+
    '<div class="card"><div class="ayah">﴿ إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ يَا أَيُّهَا الَّذِينَ آمَنُوا صَلُّوا عَلَيْهِ وَسَلِّمُوا تَسْلِيمًا ﴾</div></div>'+
+   (function(){var np=window.Prayer&&window.adhan?Prayer.next(pctx()):null;return '<div class="card"><div class="row"><span>'+(np?'🕌 الصلاة القادمة: <b>'+esc(np.name)+'</b> '+esc(np.time):'🕌 مواقيت الصلاة واتجاه القبلة')+'</span><button class="ghost" id="goTimes">'+(np?'المواقيت والقبلة':'اختر مدينتك')+'</button></div></div>'})()+
    '<div class="card"><div class="row"><span class="sub" id="nextTxt">'+esc(nextReminderText())+'</span><button class="ghost" id="testRem">جرّب التنبيه</button></div></div>';
   if($('getUpd'))$('getUpd').onclick=function(){Reminder.openUrl({url:UPD.url})};
   if($('fixSetup'))$('fixSetup').onclick=function(){go('settings')};
@@ -376,6 +437,7 @@ function renderHome(){
     S.targets[cur.id]=opts[(i+1)%opts.length];persist();renderHome();
   };
   $('testRem').onclick=testReminder;
+  $('goTimes').onclick=function(){go('times')};
 }
 function renderHomeFast(cur,target,v){
   var el=$('cnt');if(!el){renderHome();return}
@@ -465,6 +527,7 @@ function renderSettings(){
    '</div>'+
    (NATIVE?'':'<div class="card sub" style="line-height:1.9"><b style="color:var(--ink)">ملاحظة</b><br>في المتصفح يعمل التنبيه ما دامت الصفحة مفتوحة. ثبّت تطبيق أندرويد ليصلك والهاتف مقفل.</div>')+
    (NATIVE&&NS&&NS.versionName?'<div class="card"><div class="row"><span>إصدار التطبيق: '+esc(NS.versionName)+'</span><button class="ghost" id="chkUpd">'+(UPD?'تحميل النسخة الجديدة':'التحقق من التحديث')+'</button></div></div>':'')+
+   displaySettingsHtml()+
    '<div class="card"><div class="row"><span>مسح بيانات العدّاد</span><button class="ghost" id="wipe">مسح</button></div></div>';
   view.innerHTML=html;
 
@@ -492,6 +555,7 @@ function renderSettings(){
       if(box.checked){try{window.Notification&&Notification.requestPermission().then(function(p){if(p!=='granted'){s.notif=false;box.checked=false;persist()}}).catch(function(){s.notif=false;box.checked=false;persist()})}catch(e){s.notif=false;box.checked=false;persist()}}
     };
   }
+  bindDisplaySettings();
   $('wipe').onclick=function(){if(confirm('مسح كل بيانات العدّاد والتقدم؟')){S.counts={};S.lists={};persist();render()}};
 }
 function rerenderSettings(){if(tab==='settings'){var y=window.scrollY;renderSettings();window.scrollTo(0,y)}else if(tab==='home')renderHome()}
@@ -500,7 +564,7 @@ function rerenderSettings(){if(tab==='settings'){var y=window.scrollY;renderSett
 document.addEventListener('visibilitychange',function(){
   if(document.hidden)return;
   tick();
-  if(NATIVE)refreshNative().then(function(){if(tab==='settings'||tab==='home')rerenderSettings()});
+  if(NATIVE)refreshNative().then(syncDisplay).then(function(){if(tab==='settings'||tab==='home')rerenderSettings()});
   else if(tab==='home')renderHome(); // تحديث العدّاد عند بداية يوم جديد
 });
 
@@ -527,6 +591,9 @@ function checkUpdate(force){
 render();tick();
 if(NATIVE){
   syncNative().then(function(){
+    if(window.Prayer&&window.adhan){try{Prayer.init(pctx())}catch(e){}}
+    return syncDisplay();
+  }).then(function(){
     render();
     checkUpdate(false);
     // أول تشغيل: اطلب إذن الإشعارات مباشرة

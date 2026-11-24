@@ -158,8 +158,17 @@ function renderPage(m) {
 }
 
 /* ---------------- الفهرس ---------------- */
+function edSwitch(ed) {
+  return '<div class="q-tabs" style="margin:0 0 4px">' +
+    '<button class="q-btn' + (ed === 'madina' ? ' on' : '') + '" data-ed="madina">مصحف المدينة</button>' +
+    '<button class="q-btn' + (ed === 'sham' ? ' on' : '') + '" data-ed="sham">مصحف الشمرلي</button></div>';
+}
+function bindEd() {
+  ctx.view.querySelectorAll('[data-ed]').forEach((b) => b.onclick = () => { Q().ed = b.dataset.ed; idxTab = 'surah'; render(); });
+}
 function renderIndex(m) {
   const q = Q();
+  if (q.ed === 'sham') { renderShamIndex(m); return; }
   let body = '';
   if (idxTab === 'surah') {
     body = '<div class="card q-list">' + m.surahs.map((s) =>
@@ -170,12 +179,6 @@ function renderIndex(m) {
     let b = '';
     for (let j = 1; j <= m.juzCount; j++) b += '<button class="q-btn" data-p="' + m.juz(j).page.number + '">' + AR(j) + '</button>';
     body = '<div class="card"><div class="sub" style="margin-bottom:8px">اختر الجزء</div><div class="q-juz">' + b + '</div></div>';
-  } else if (idxTab === 'sham') {
-    const sh = SH();
-    body = '<div class="card"><b>مصحف الشمرلي (صور الصفحات)</b>' +
-      '<div class="sub" style="line-height:1.9;margin:6px 0">تُعرض الصفحات من نسخة مجانية على موقع archive.org (بخط محمد سعد إبراهيم «حداد»، ويجوز نسخها وتداولها لغير الأغراض التجارية)، فتحتاج اتصالًا بالإنترنت عند فتح الصفحة أول مرة.</div>' +
-      '<button class="pri" id="shOpen">' + (sh.leaf ? 'متابعة · ص ' + AR(sh.leaf - sh.off) : 'فتح المصحف') + '</button></div>' +
-      (sh.marks.length ? '<div class="card q-list">' + sh.marks.map((l) => '<div class="it" data-l="' + l + '"><span class="num">🔖</span><span class="nm">صفحة ' + AR(l - sh.off) + '</span></div>').join('') + '</div>' : '');
   } else if (idxTab === 'marks') {
     body = '<div class="card q-list">' + (q.marks.length ? q.marks.map((p) =>
       '<div class="it" data-p="' + p + '"><span class="num">🔖</span><span class="nm">' + esc(surahOfPage(m, p)) + '<small>الجزء ' + AR(m.page(p).juz.number) + '</small></span><span class="pg">ص ' + AR(p) + '</span></div>').join('')
@@ -184,19 +187,16 @@ function renderIndex(m) {
     body = '<div class="card"><div class="q-search"><input id="qQ" placeholder="ابحث بكلمات من الآية…" value="' + esc(lastQuery) + '"><button class="q-btn" id="qS">بحث</button></div><div class="q-res" id="qRes"></div></div>';
   }
   ctx.view.innerHTML =
-    '<div class="card"><div class="row"><b style="font-size:18px">المصحف الشريف</b>' +
+    '<div class="card">' + edSwitch('madina') + '<div class="row"><b style="font-size:18px">المصحف الشريف</b>' +
       '<button class="pri" id="qCont">متابعة القراءة · ص ' + AR(q.page || 1) + '</button></div>' +
     '<div class="q-tabs">' +
-      [['surah', 'السور'], ['juz', 'الأجزاء'], ['search', 'بحث'], ['marks', 'العلامات'], ['sham', 'الشمرلي']].map(([k, t]) =>
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['search', 'بحث'], ['marks', 'العلامات']].map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
     '<div class="q-credit">نص المصحف برواية حفص عن عاصم من إصدار مجمع الملك فهد لطباعة المصحف الشريف (الخط العثماني، ترقيم مصحف المدينة)، عبر مكتبة quran-text (CC BY 4.0).</div>';
   ctx.view.querySelectorAll('.q-tabs button').forEach((b) => b.onclick = () => { idxTab = b.dataset.t; render(); });
   ctx.view.querySelectorAll('[data-p]').forEach((el) => el.onclick = () => { Q().page = +el.dataset.p; mode = 'page'; render(); window.scrollTo(0, 0); });
-  if (idxTab === 'sham') {
-    document.getElementById('shOpen').onclick = () => { mode = 'sham'; render(); window.scrollTo(0, 0); };
-    ctx.view.querySelectorAll('[data-l]').forEach((el) => el.onclick = () => { SH().leaf = +el.dataset.l; mode = 'sham'; render(); });
-  }
+  bindEd();
   document.getElementById('qCont').onclick = () => { mode = 'page'; render(); window.scrollTo(0, 0); };
   if (idxTab === 'search') {
     const inp = document.getElementById('qQ');
@@ -230,6 +230,74 @@ function SH() {
   if (!q.sham.v2) { q.sham.off = -1; q.sham.v2 = 1; }
   return q.sham;
 }
+// بداية كل سورة وكل جزء في مصحف الشمرلي (٥٢١ صفحة)، من بيانات مشروع Quran for Android (GPL-3)
+const SH_SURA = [1, 2, 41, 63, 86, 104, 122, 144, 152, 168, 180, 192, 204, 209, 215, 220, 232, 242, 252, 259, 267, 275, 283, 290, 299, 305, 314, 322, 331, 337, 343, 346, 349, 357, 363, 368, 373, 379, 384, 391, 399, 404, 410, 416, 418, 422, 426, 429, 433, 436, 438, 441, 443, 446, 448, 451, 454, 458, 461, 464, 467, 468, 470, 471, 473, 475, 477, 479, 481, 483, 485, 487, 489, 490, 492, 494, 496, 497, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 511, 512, 513, 513, 513, 514, 515, 515, 516, 516, 517, 517, 518, 518, 519, 519, 519, 520, 520, 520, 521, 521, 521];
+const SH_JUZ = [1, 19, 35, 51, 67, 83, 98, 115, 131, 147, 163, 180, 198, 215, 232, 249, 267, 283, 301, 319, 335, 352, 369, 387, 404, 422, 439, 458, 477, 497];
+// الصورة رقم n في archive.org = الصفحة n بهذا الترقيم، والرقم المطبوع أسفل الصفحة = n + ١
+const shPrinted = (leaf) => leaf + 1;
+function shSurahOf(leaf) { let i = 0; while (i + 1 < SH_SURA.length && SH_SURA[i + 1] <= leaf) i++; return i + 1; }
+function shJuzOf(leaf) { let i = 0; while (i + 1 < SH_JUZ.length && SH_JUZ[i + 1] <= leaf) i++; return i + 1; }
+let shSt = null;   // حالة التحميل من الجهاز
+function R() { return ctx && ctx.R; }
+function refreshShStatus() {
+  if (!R() || !R().shamarlyStatus) return Promise.resolve(null);
+  return R().shamarlyStatus().then((st) => { shSt = st; return st; }).catch(() => null);
+}
+function localSrc(leaf) {
+  if (!shSt || !shSt.done || !window.Capacitor || !window.Capacitor.convertFileSrc) return null;
+  return window.Capacitor.convertFileSrc(shSt.dir + '/' + leaf + '.jpg');
+}
+let shPoll = null;
+function renderShamIndex(m) {
+  const sh = SH();
+  let body = '';
+  if (idxTab === 'juz') {
+    body = '<div class="card"><div class="sub" style="margin-bottom:8px">اختر الجزء</div><div class="q-juz">' +
+      SH_JUZ.map((p, i) => '<button class="q-btn" data-l="' + p + '">' + AR(i + 1) + '</button>').join('') + '</div></div>';
+  } else if (idxTab === 'marks') {
+    body = '<div class="card q-list">' + (sh.marks.length ? sh.marks.map((l) =>
+      '<div class="it" data-l="' + l + '"><span class="num">🔖</span><span class="nm">' + esc(m.surahs[shSurahOf(l) - 1].nameAr) + '<small>الجزء ' + AR(shJuzOf(l)) + '</small></span><span class="pg">ص ' + AR(shPrinted(l)) + '</span></div>').join('')
+      : '<div class="sub">لا توجد علامات بعد. اضغط 🔖 أثناء القراءة لحفظ الصفحة.</div>') + '</div>';
+  } else if (idxTab === 'dl') {
+    const st = shSt || { done: 0, total: SH_LEAVES, running: false };
+    const pct = Math.round(st.done / st.total * 100);
+    body = '<div class="card"><b>تحميل المصحف للقراءة بلا إنترنت</b>' +
+      '<div class="sub" style="line-height:1.9;margin:6px 0">الحجم حوالي ٨٠ ميجا. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
+      '<div class="prog"><i style="width:' + pct + '%"></i></div><div class="sub" id="shDlTxt">' + AR(st.done) + ' / ' + AR(st.total) + ' صفحة' + (st.running ? ' · جارٍ التحميل…' : '') + (st.error ? ' · توقف بسبب الاتصال' : '') + '</div>' +
+      '<div class="row" style="margin-top:10px;justify-content:flex-start;gap:8px">' +
+        (st.running ? '<button class="ghost" id="shStop">إيقاف</button>' : (st.done < st.total ? '<button class="pri" id="shDl">' + (st.done ? 'استكمال التحميل' : 'تحميل الآن') + '</button>' : '<span style="color:var(--ok)">✓ المصحف محفوظ في الهاتف</span>')) +
+        (st.done && !st.running ? '<button class="ghost" id="shDel">حذف من الهاتف</button>' : '') +
+      '</div>' + (R() ? '' : '<div class="sub" style="margin-top:8px">التحميل متاح في تطبيق أندرويد فقط.</div>') + '</div>';
+  } else {
+    body = '<div class="card q-list">' + m.surahs.map((s) =>
+      '<div class="it" data-l="' + SH_SURA[s.number - 1] + '"><span class="num">' + AR(s.number) + '</span>' +
+      '<span class="nm">' + esc(s.nameAr) + '<small>' + (s.revelation === 'makki' ? 'مكية' : 'مدنية') + ' · ' + AR(s.ayahCount) + ' آية</small></span>' +
+      '<span class="pg">ص ' + AR(shPrinted(SH_SURA[s.number - 1])) + '</span></div>').join('') + '</div>';
+  }
+  ctx.view.innerHTML =
+    '<div class="card">' + edSwitch('sham') + '<div class="row"><b style="font-size:18px">مصحف الشمرلي</b>' +
+      '<button class="pri" id="shOpen">متابعة القراءة · ص ' + AR(shPrinted(sh.leaf || 1)) + '</button></div>' +
+    '<div class="q-tabs">' +
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].map(([k, t]) =>
+        '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
+    '</div></div>' + body +
+    '<div class="q-credit">مصحف الشمرلي بخط محمد سعد إبراهيم «حداد»، نسخة مجانية يجوز نسخها وتداولها لغير الأغراض التجارية، مستضافة على archive.org.</div>';
+  bindEd();
+  ctx.view.querySelectorAll('.q-tabs button[data-t]').forEach((b) => b.onclick = () => { idxTab = b.dataset.t; render(); });
+  ctx.view.querySelectorAll('[data-l]').forEach((el) => el.onclick = () => { SH().leaf = +el.dataset.l; mode = 'sham'; render(); window.scrollTo(0, 0); });
+  document.getElementById('shOpen').onclick = () => { mode = 'sham'; render(); window.scrollTo(0, 0); };
+  const act = (fn) => () => { if (!R()) return; R()[fn]().then((st) => { shSt = st; render(); }).catch(() => {}); };
+  if (document.getElementById('shDl')) document.getElementById('shDl').onclick = act('shamarlyDownload');
+  if (document.getElementById('shStop')) document.getElementById('shStop').onclick = act('shamarlyStop');
+  if (document.getElementById('shDel')) document.getElementById('shDel').onclick = () => { if (confirm('حذف صفحات المصحف المحفوظة؟')) act('shamarlyDelete')(); };
+  clearInterval(shPoll);
+  if (idxTab === 'dl' && shSt && shSt.running) {
+    shPoll = setInterval(() => {
+      if (mode !== 'index' || idxTab !== 'dl' || Q().ed !== 'sham') { clearInterval(shPoll); return; }
+      refreshShStatus().then(() => render());
+    }, 1500);
+  }
+}
 const shLoaded = {};
 function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
 function renderSham() {
@@ -237,24 +305,24 @@ function renderSham() {
   if (!sh.leaf) sh.leaf = 1;
   const leaf = Math.max(0, Math.min(SH_LEAVES - 1, sh.leaf));
   sh.leaf = leaf; ctx.persist();
-  const pageNo = leaf - sh.off;
+  const pageNo = shPrinted(leaf);
+  const surahName = M ? M.surahs[shSurahOf(leaf) - 1].nameAr : '';
   const marked = sh.marks.indexOf(leaf) >= 0;
   const w = 900;   // دقة كافية للقراءة وأسرع في التحميل
   const wLow = 360;
   ctx.view.innerHTML =
     '<div class="q-top"><div class="q-bar">' +
       '<button class="q-btn" id="qBack">☰</button>' +
-      '<div class="ttl">مصحف الشمرلي<small>الصفحة ' + AR(pageNo) + '</small></div>' +
+      '<div class="ttl">' + esc(surahName) + '<small>الشمرلي · الصفحة ' + AR(pageNo) + ' · الجزء ' + AR(shJuzOf(leaf)) + '</small></div>' +
       '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
     '</div></div>' +
     '<div class="q-page" id="qPage" style="position:relative;padding:4px;min-height:60vh;display:flex;align-items:center;justify-content:center">' +
-      '<img id="shImg" alt="" style="width:100%;height:auto;display:block;border-radius:6px" src="' + (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow)) + '">' +
+      '<img id="shImg" alt="" style="width:100%;height:auto;display:block;border-radius:6px" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
       '<div id="shMsg" class="sub" style="position:absolute">جارٍ تحميل الصفحة…</div>' +
     '</div>' +
     '<div class="q-bar" style="margin-top:6px">' +
       '<button class="q-btn" id="qNext">→ التالية</button>' +
       '<button class="q-btn" id="qGo">انتقال</button>' +
-      '<button class="q-btn" id="shFix">ضبط الترقيم</button>' +
       '<button class="q-btn" id="qPrev">السابقة ←</button>' +
     '</div>';
   const img = document.getElementById('shImg'), msg = document.getElementById('shMsg');
@@ -268,7 +336,10 @@ function renderSham() {
     }
   };
   img.onerror = () => {
-    if (!img.dataset.retry) { img.dataset.retry = '1'; img.src = shUrl(leaf, 0); return; }
+    const stage = +(img.dataset.stage || 0);
+    img.dataset.stage = stage + 1;
+    if (stage === 0 && img.src.indexOf('archive.org') < 0) { img.src = shUrl(leaf, wLow); return; }   // الصفحة غير محفوظة بعد
+    if (stage <= 1) { img.src = shUrl(leaf, 0); return; }
     msg.innerHTML = 'تعذّر تحميل الصفحة. تأكد من الاتصال بالإنترنت.<br><button class="q-btn" id="shRetry" style="margin-top:8px">إعادة المحاولة</button> <button class="q-btn" id="shWeb" style="margin-top:8px">فتح في المتصفح</button>';
     document.getElementById('shRetry').onclick = () => renderSham();
     document.getElementById('shWeb').onclick = () => {
@@ -280,12 +351,12 @@ function renderSham() {
   // تحميل مسبق للصفحات المجاورة حتى يكون التقليب فوريًا
   [1, 2, 3, -1].forEach((d) => {
     const t = leaf + d;
-    if (t >= 0 && t < SH_LEAVES && !shLoaded[t]) { const p = new Image(); p.onload = () => { shLoaded[t] = 1; }; p.src = shUrl(t, w); }
+    if (t >= 0 && t < SH_LEAVES && !shLoaded[t] && !(shSt && shSt.done >= shSt.total)) { const p = new Image(); p.onload = () => { shLoaded[t] = 1; }; p.src = shUrl(t, w); }
   });
   const go = (d) => { const t = leaf + d; if (t >= 0 && t < SH_LEAVES) { sh.leaf = t; renderSham(); window.scrollTo(0, 0); } };
   document.getElementById('qNext').onclick = () => go(1);
   document.getElementById('qPrev').onclick = () => go(-1);
-  document.getElementById('qBack').onclick = () => { mode = 'index'; idxTab = 'sham'; render(); };
+  document.getElementById('qBack').onclick = () => { mode = 'index'; Q().ed = 'sham'; render(); };
   document.getElementById('qMark').onclick = () => {
     const i = sh.marks.indexOf(leaf);
     if (i >= 0) sh.marks.splice(i, 1); else sh.marks.unshift(leaf);
@@ -294,11 +365,7 @@ function renderSham() {
   const num = (v) => parseInt(String(v).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)), 10);
   document.getElementById('qGo').onclick = () => {
     const t = num(prompt('رقم الصفحة', String(pageNo)) || '');
-    if (t >= 1 - sh.off && t + sh.off < SH_LEAVES) { sh.leaf = t + sh.off; renderSham(); window.scrollTo(0, 0); }
-  };
-  document.getElementById('shFix').onclick = () => {
-    const t = num(prompt('ما رقم هذه الصفحة المطبوع في المصحف؟', String(pageNo)) || '');
-    if (t >= 0 && t < SH_LEAVES) { sh.off = leaf - t; ctx.persist(); renderSham(); }
+    if (t >= 1 && t - 1 < SH_LEAVES) { sh.leaf = t - 1; renderSham(); window.scrollTo(0, 0); }
   };
   const pg = document.getElementById('qPage');
   let x0 = null, y0 = null;
@@ -322,7 +389,7 @@ export function show(c) {
   ctx = c;
   ensureCss();
   if (!M) ctx.view.innerHTML = '<div class="card sub" style="text-align:center;padding:30px">جارٍ تحميل المصحف…</div>';
-  return mushaf().then(() => {
+  return Promise.all([mushaf(), refreshShStatus()]).then(() => {
     if (document.fonts && document.fonts.load) return document.fonts.load('22px "KFGQPC HAFS Uthmanic Script"').catch(() => {});
   }).then(render).catch((e) => {
     ctx.view.innerHTML = '<div class="card sub">تعذّر تحميل المصحف: ' + esc(e && e.message || e) + '</div>';

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="10dp"
+    android:layoutDirection="rtl">
+    <TextView
+        android:id="@+id/widget_open"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="أذكار ﷺ"
+        android:textColor="#D9AC4E"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:gravity="start" />
+    <TextView
+        android:id="@+id/widget_text"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="اللهم صلِّ وسلِّم على نبينا محمد"
+        android:textColor="#FFFFFF"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textDirection="rtl"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="11sp"
+        android:autoSizeMaxTextSize="20sp" />
+</LinearLayout>

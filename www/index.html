@@ -279,8 +279,8 @@ function inWindow(h){var a=S.settings.from,b=S.settings.to;return a<=b?(h>=a&&h<
 function tick(){
   if(NATIVE||!S.settings.hourly)return;
   var d=new Date(),key=today()+'-'+d.getHours();
-  if(d.getMinutes()===0&&S.lastHour!==key&&inWindow(d.getHours())){
-    S.lastHour=key;persist();
+  if(d.getMinutes()<=1&&S.lastHour!==key+d.getMinutes()&&inWindow(d.getHours())){
+    S.lastHour=key+d.getMinutes();persist();
     showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
   }
   var mm=d.getMinutes(),hk=key+'m'+mm;
@@ -505,7 +505,7 @@ function renderSettings(){
   var html=
    '<div class="card"><b style="font-size:18px">التذكير بالصلاة على النبي ﷺ</b>'+
     '<div class="sw"><span>تذكير كل ساعة</span><input type="checkbox" id="sHourly" '+(s.hourly?'checked':'')+'></div>'+
-    '<div class="sw"><span>أذكار ثلث الساعة<small class="sub" style="display:block">الصلاة على النبي ﷺ أول الساعة، «أستغفر الله» عند الدقيقة ٢٠، و«لا حول ولا قوة إلا بالله» عند الدقيقة ٤٠، وكلٌّ منهما مرتين خلال دقيقتين</small></span><input type="checkbox" id="sHalf" '+(s.half!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>أذكار ثلث الساعة<small class="sub" style="display:block">الصلاة على النبي ﷺ أول الساعة، «أستغفر الله» عند الدقيقة ٢٠، و«لا حول ولا قوة إلا بالله» عند الدقيقة ٤٠، وكل ذكر يتكرر مرتين خلال دقيقتين</small></span><input type="checkbox" id="sHalf" '+(s.half!==false?'checked':'')+'></div>'+
     '<div class="sw"><span>من الساعة</span><select id="sFrom">'+hourOpts(s.from)+'</select></div>'+
     '<div class="sw"><span>إلى الساعة</span><select id="sTo">'+hourOpts(s.to)+'</select></div>'+
     (NATIVE?'<div class="sw"><span>تشغيل الصوت حتى في الوضع الصامت<small class="sub" style="display:block">يُسمع على مستوى صوت المنبّه</small></span><input type="checkbox" id="sLoud" '+(s.loud?'checked':'')+'></div>':'')+

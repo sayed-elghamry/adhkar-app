@@ -58,7 +58,8 @@ public final class ReminderScheduler {
     /** نوع التذكير: صلاة على النبي (رأس الساعة)، استغفار (:٢٠ و:٢١)، حوقلة (:٤٠ و:٤١). */
     public static final int K_SALAWAT = 0, K_ISTIGHFAR = 1, K_HAWQALA = 2;
     /** دقائق التذكير داخل الساعة؛ كل ذكر من الاثنين يتكرر مرتين خلال دقيقتين. */
-    private static final int[] THIRD_MINUTES = {0, 20, 21, 40, 41};
+    private static final int[] THIRD_MINUTES = {0, 1, 20, 21, 40, 41};
+    private static final int[] HOUR_MINUTES = {0, 1};
 
     public static int kindAt(long at) {
         Calendar cal = Calendar.getInstance();
@@ -109,7 +110,6 @@ public final class ReminderScheduler {
 
     /** الموعد التالي: الساعة الكاملة (صلاة على النبي) أو نصفها (استغفار) داخل النافذة. */
     static long computeNext(long now, int from, int to, boolean half) {
-        if (!half) return computeNext(now, from, to);
         Calendar base = Calendar.getInstance();
         base.setTimeInMillis(now);
         base.set(Calendar.MINUTE, 0);
@@ -117,9 +117,9 @@ public final class ReminderScheduler {
         base.set(Calendar.MILLISECOND, 0);
         for (int hr = 0; hr < 49; hr++) {
             int h = base.get(Calendar.HOUR_OF_DAY);
-            for (int m : THIRD_MINUTES) {
+            for (int m : (half ? THIRD_MINUTES : HOUR_MINUTES)) {
                 // أذكار الثلث داخل النافذة فقط إذا لم تكن ساعة آخر تذكير
-                boolean ok = m == 0 ? inWindow(h, from, to) : (inWindow(h, from, to) && h != to);
+                boolean ok = m < 15 ? inWindow(h, from, to) : (inWindow(h, from, to) && h != to);
                 long t = base.getTimeInMillis() + m * 60_000L;
                 if (ok && t > now + 5_000) return t;
             }

@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,3 +33,11 @@ jobs:
         with:
           name: adhkar-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK as a release (direct phone download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk adhkar.apk
+          gh release create "build-${{ github.run_number }}" adhkar.apk \
+            --title "أذكار - نسخة ${{ github.run_number }}" \
+            --notes "ملف APK للتثبيت المباشر على أندرويد." --latest

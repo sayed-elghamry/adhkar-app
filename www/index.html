@@ -101,6 +101,7 @@ nav button.on{color:var(--green);font-weight:700}
 
 <nav id="nav"></nav>
 
+<script src="capacitor.js"></script>
 <script>
 (function(){
 'use strict';
@@ -260,12 +261,14 @@ function chime(){
     });
   }catch(e){}
 }
+var salAudio=null;
+function playSalawat(){try{if(!salAudio)salAudio=new Audio('salawat.mp3');salAudio.currentTime=0;var p=salAudio.play();if(p&&p.catch)p.catch(function(){})}catch(e){}}
 function buzz(ms){if(S.settings.vibrate){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}}
 
 /* ---------- التذكير ---------- */
 var toastEl=document.getElementById('toast'),toastText=document.getElementById('toastText');
 function showToast(txt){
-  toastText.textContent=txt;toastEl.classList.add('show');chime();buzz([120,60,120]);
+  toastText.textContent=txt;toastEl.classList.add('show');playSalawat();buzz([120,60,120]);
   if(!NATIVE&&S.settings.notif){try{if(window.Notification&&Notification.permission==='granted'){new Notification('حان وقت الصلاة على النبي ﷺ',{body:txt})}}catch(e){}}
 }
 document.getElementById('toastClose').onclick=function(){toastEl.classList.remove('show')};

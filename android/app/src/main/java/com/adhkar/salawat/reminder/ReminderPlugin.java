@@ -54,7 +54,7 @@ public class ReminderPlugin extends Plugin {
 
     @PluginMethod
     public void test(PluginCall call) {
-        ReminderScheduler.showNow(getContext(), call.getBoolean("istighfar", false), true, null);
+        ReminderScheduler.showNow(getContext(), call.getInt("kind", 0), true, null);
         call.resolve(status());
     }
 
@@ -245,7 +245,7 @@ public class ReminderPlugin extends Plugin {
         r.put("nextAt", ReminderScheduler.nextAt(c));
         r.put("playInSilent", ReminderScheduler.playInSilent(c));
         r.put("halfHour", ReminderScheduler.halfHour(c));
-        r.put("nextIstighfar", ReminderScheduler.nextAt(c) != 0L && ReminderScheduler.isIstighfarTime(ReminderScheduler.nextAt(c)));
+        r.put("nextKind", ReminderScheduler.nextAt(c) == 0L ? 0 : ReminderScheduler.kindAt(ReminderScheduler.nextAt(c)));
         r.put("notifications", NotificationManagerCompat.from(c).areNotificationsEnabled());
         r.put("exactAlarms", ReminderScheduler.canScheduleExact(c));
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);

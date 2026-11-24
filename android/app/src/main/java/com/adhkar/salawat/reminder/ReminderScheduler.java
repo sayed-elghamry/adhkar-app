@@ -50,6 +50,25 @@ public final class ReminderScheduler {
         "رب اغفر لي وتب عليّ إنك أنت التواب الرحيم"
     };
 
+    private static final String[] HAWQALA = {
+        "لا حول ولا قوة إلا بالله",
+        "لا حول ولا قوة إلا بالله العلي العظيم"
+    };
+
+    /** نوع التذكير: صلاة على النبي (رأس الساعة)، استغفار (:٢٠ و:٢١)، حوقلة (:٤٠ و:٤١). */
+    public static final int K_SALAWAT = 0, K_ISTIGHFAR = 1, K_HAWQALA = 2;
+    /** دقائق التذكير داخل الساعة؛ كل ذكر من الاثنين يتكرر مرتين خلال دقيقتين. */
+    private static final int[] THIRD_MINUTES = {0, 20, 21, 40, 41};
+
+    public static int kindAt(long at) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(at);
+        int m = cal.get(Calendar.MINUTE);
+        if (m >= 15 && m < 35) return K_ISTIGHFAR;
+        if (m >= 35 && m < 55) return K_HAWQALA;
+        return K_SALAWAT;
+    }
+
     private static final String[] SALAWAT = {
         "اللهم صلِّ وسلِّم على نبينا محمد",
         "اللهم صلِّ على محمد صلى الله عليه وسلم",
@@ -72,12 +91,7 @@ public final class ReminderScheduler {
     public static long nextAt(Context c) { return prefs(c).getLong(K_NEXT, 0L); }
     public static boolean halfHour(Context c) { return prefs(c).getBoolean(K_HALF, true); }
     public static void setHalfHour(Context c, boolean v) { prefs(c).edit().putBoolean(K_HALF, v).apply(); }
-    /** هل هذا الموعد موعد استغفار (نصف الساعة)؟ */
-    public static boolean isIstighfarTime(long at) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(at);
-        return cal.get(Calendar.MINUTE) >= 15 && cal.get(Calendar.MINUTE) < 45;
-    }
+
 
     public static void saveSettings(Context c, boolean enabled, int from, int to) {
         prefs(c).edit()
@@ -96,20 +110,22 @@ public final class ReminderScheduler {
     /** الموعد التالي: الساعة الكاملة (صلاة على النبي) أو نصفها (استغفار) داخل النافذة. */
     static long computeNext(long now, int from, int to, boolean half) {
         if (!half) return computeNext(now, from, to);
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(now);
-        cal.set(Calendar.MINUTE, cal.get(Calendar.MINUTE) >= 30 ? 30 : 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        for (int i = 0; i < 96; i++) {
-            cal.add(Calendar.MINUTE, 30);
-            int h = cal.get(Calendar.HOUR_OF_DAY);
-            boolean isHalf = cal.get(Calendar.MINUTE) == 30;
-            // نصف الساعة يكون داخل النافذة إذا كانت ساعته وساعته التالية داخلها (فلا استغفار بعد آخر تذكير)
-            boolean ok = isHalf ? (inWindow(h, from, to) && h != to) : inWindow(h, from, to);
-            if (cal.getTimeInMillis() > now + 5_000 && ok) return cal.getTimeInMillis();
+        Calendar base = Calendar.getInstance();
+        base.setTimeInMillis(now);
+        base.set(Calendar.MINUTE, 0);
+        base.set(Calendar.SECOND, 0);
+        base.set(Calendar.MILLISECOND, 0);
+        for (int hr = 0; hr < 49; hr++) {
+            int h = base.get(Calendar.HOUR_OF_DAY);
+            for (int m : THIRD_MINUTES) {
+                // أذكار الثلث داخل النافذة فقط إذا لم تكن ساعة آخر تذكير
+                boolean ok = m == 0 ? inWindow(h, from, to) : (inWindow(h, from, to) && h != to);
+                long t = base.getTimeInMillis() + m * 60_000L;
+                if (ok && t > now + 5_000) return t;
+            }
+            base.add(Calendar.HOUR_OF_DAY, 1);
         }
-        return now + 1_800_000L;
+        return now + 1_200_000L;
     }
 
     /** أول ساعة كاملة بعد "الآن" تقع داخل النافذة. */
@@ -189,11 +205,11 @@ public final class ReminderScheduler {
 
     public static void showNow(Context c) { showNow(c, false, null); }
 
-    public static void showNow(Context c, boolean forceSound, Runnable onDone) { showNow(c, false, forceSound, onDone); }
+    public static void showNow(Context c, boolean forceSound, Runnable onDone) { showNow(c, K_SALAWAT, forceSound, onDone); }
 
-    public static void showNow(Context c, boolean istighfar, boolean forceSound, Runnable onDone) {
+    public static void showNow(Context c, int kind, boolean forceSound, Runnable onDone) {
         ensureChannel(c);
-        String[] list = istighfar ? ISTIGHFAR : SALAWAT;
+        String[] list = kind == K_ISTIGHFAR ? ISTIGHFAR : kind == K_HAWQALA ? HAWQALA : SALAWAT;
         String text = list[new Random().nextInt(list.length)];
         Intent open = new Intent(c, MainActivity.class)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -201,7 +217,7 @@ public final class ReminderScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_reminder)
-            .setContentTitle(istighfar ? "أستغفر الله" : "صلِّ على النبي ﷺ")
+            .setContentTitle(kind == K_ISTIGHFAR ? "أستغفر الله" : kind == K_HAWQALA ? "لا حول ولا قوة إلا بالله" : "صلِّ على النبي ﷺ")
             .setContentText(text)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -217,6 +233,6 @@ public final class ReminderScheduler {
             // إذن الإشعارات غير ممنوح
         }
         prefs(c).edit().putLong(K_LAST, System.currentTimeMillis()).apply();
-        SoundPlayer.play(c, istighfar, forceSound, onDone);
+        SoundPlayer.play(c, kind, forceSound, onDone);
     }
 }

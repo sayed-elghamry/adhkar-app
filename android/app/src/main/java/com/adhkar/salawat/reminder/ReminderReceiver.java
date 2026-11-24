@@ -20,11 +20,11 @@ public class ReminderReceiver extends BroadcastReceiver {
             boolean inWin = ReminderScheduler.inWindow(hour,
                 ReminderScheduler.fromHour(context), ReminderScheduler.toHour(context));
             // لا نُظهر تذكيرًا متأخرًا جدًا (مثلًا بعد خروج الهاتف من سبات طويل)
-            if (scheduled == 0L || (late < 20 * 60_000L && (inWin || late < 10 * 60_000L))) {
+            if (scheduled == 0L || (late < 10 * 60_000L)) {
                 shown = true;
-                boolean ist = scheduled != 0L && ReminderScheduler.isIstighfarTime(scheduled);
+                int kind = scheduled == 0L ? ReminderScheduler.K_SALAWAT : ReminderScheduler.kindAt(scheduled);
                 ReminderScheduler.reschedule(context);
-                ReminderScheduler.showNow(context, ist, false, pr::finish);
+                ReminderScheduler.showNow(context, kind, false, pr::finish);
             }
         }
         if (!shown) {

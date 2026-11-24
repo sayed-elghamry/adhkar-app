@@ -32,14 +32,9 @@ public final class SoundPlayer {
     }
 
     /** @param force للتجربة من داخل التطبيق: يتجاهل الوضع الصامت */
-    public static void play(Context ctx, boolean force, Runnable onDone) { play(ctx, false, force, onDone); }
+    public static void play(Context ctx, boolean force, Runnable onDone) { play(ctx, ReminderScheduler.K_SALAWAT, force, onDone); }
 
-    /** معرّف ملف res/raw/istighfar.mp3 إن وُجد (0 إن لم يُضف بعد). */
-    static int istighfarRes(Context c) {
-        return c.getResources().getIdentifier("istighfar", "raw", c.getPackageName());
-    }
-
-    public static synchronized void play(Context ctx, boolean istighfar, boolean force, Runnable onDone) {
+    public static synchronized void play(Context ctx, int kind, boolean force, Runnable onDone) {
         final Context c = ctx.getApplicationContext();
         final Runnable done = onDone != null ? onDone : () -> {};
         if (!force && !shouldPlay(c)) { done.run(); return; }
@@ -58,15 +53,11 @@ public final class SoundPlayer {
                 .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build());
-            int res = istighfar ? istighfarRes(c) : R.raw.salawat;
-            if (res != 0) {
-                AssetFileDescriptor afd = c.getResources().openRawResourceFd(res);
-                mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-                afd.close();
-            } else {
-                // مؤقتًا حتى يُضاف تسجيل «أستغفر الله»: نغمة الإشعار الافتراضية
-                mp.setDataSource(c, android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION));
-            }
+            int res = kind == ReminderScheduler.K_ISTIGHFAR ? R.raw.istighfar
+                : kind == ReminderScheduler.K_HAWQALA ? R.raw.hawqala : R.raw.salawat;
+            AssetFileDescriptor afd = c.getResources().openRawResourceFd(res);
+            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            afd.close();
             mp.setOnCompletionListener(p -> { release(p); finish.run(); });
             mp.setOnErrorListener((p, w, e) -> { release(p); finish.run(); return true; });
             mp.prepare();

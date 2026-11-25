@@ -370,6 +370,13 @@ function refreshShStatus() {
     return st;
   }).catch(() => null);
 }
+// من حمّل المصحف بالنسخة المصوّرة قبل إضافة النسخة الأخف: نبقيه عليها حتى لا يحمّل من جديد
+function keepOldDownload() {
+  if (Q().shSrc || !R() || !R().shamarlyStatus) return Promise.resolve();
+  return R().shamarlyStatus({ src: 'archive' }).then((st) => {
+    if (st && st.done >= 50) { Q().shSrc = 'archive'; ctx.persist(); }
+  }).catch(() => {});
+}
 let shFiles = {};   // الصفحات المحفوظة على الهاتف: رقم ← اسم الملف
 // حفظ الصفحة على الهاتف بعد قراءتها (مرة واحدة) حتى تفتح بعد ذلك بلا إنترنت
 function cachePage(leaf) {
@@ -688,7 +695,7 @@ export function show(c) {
   ctx = c;
   ensureCss();
   if (!M) ctx.view.innerHTML = '<div class="card sub" style="text-align:center;padding:30px">جارٍ تحميل المصحف…</div>';
-  return Promise.all([mushaf(), refreshShStatus(), loadBundled()]).then(() => {
+  return Promise.all([mushaf(), keepOldDownload().then(refreshShStatus), loadBundled()]).then(() => {
     if (document.fonts && document.fonts.load) return document.fonts.load('22px "KFGQPC HAFS Uthmanic Script"').catch(() => {});
   }).then(render).catch((e) => {
     ctx.view.innerHTML = '<div class="card sub">تعذّر تحميل المصحف: ' + esc(e && e.message || e) + '</div>';

@@ -64,16 +64,21 @@ public final class ReminderScheduler {
     private static final int[] TEN_MINUTES = {0, 1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51};
     static final String K_STEP = "step";
     public static int step(Context c) { return prefs(c).getInt(K_STEP, 20); }
-    public static void setStep(Context c, int v) { prefs(c).edit().putInt(K_STEP, v == 10 ? 10 : 20).apply(); }
+    /** المدة بين كل تنبيه: ١٠ أو ٢٠ أو ٣٠ أو ٤٠ أو ٥٠ أو ٦٠ دقيقة. */
+    static int clampStep(int v) { return v == 10 || v == 30 || v == 40 || v == 50 || v == 60 ? v : 20; }
+    public static void setStep(Context c, int v) { prefs(c).edit().putInt(K_STEP, clampStep(v)).apply(); }
 
+    static int dayMinute(long at) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(at);
+        return cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE);
+    }
+
+    /** بالتتابع كل «مدة»: صلاة على النبي ← استغفار ← حوقلة، وإن أُطفئ التنويع فالصلاة على النبي فقط. */
     public static int kindAt(Context c, long at) {
-        if (step(c) == 10) {
-            Calendar cal = Calendar.getInstance();
-            cal.setTimeInMillis(at);
-            int k = (cal.get(Calendar.MINUTE) / 10) % 3;
-            return k == 1 ? K_ISTIGHFAR : k == 2 ? K_HAWQALA : K_SALAWAT;
-        }
-        return kindAt(at);
+        if (!halfHour(c)) return K_SALAWAT;
+        int k = (dayMinute(at) / clampStep(step(c))) % 3;
+        return k == 1 ? K_ISTIGHFAR : k == 2 ? K_HAWQALA : K_SALAWAT;
     }
 
     public static int kindAt(long at) {
@@ -127,6 +132,22 @@ public final class ReminderScheduler {
     static long computeNext(long now, int from, int to, boolean half) { return computeNext(now, from, to, half, 20); }
 
     static long computeNext(long now, int from, int to, boolean half, int step) {
+        // كل ذكر يتكرر مرتين خلال دقيقتين، كل «step» دقيقة من بداية اليوم
+        step = clampStep(step);
+        Calendar m0 = Calendar.getInstance();
+        m0.setTimeInMillis(now + 5_001);
+        if (m0.get(Calendar.SECOND) > 0 || m0.get(Calendar.MILLISECOND) > 0) { m0.set(Calendar.SECOND, 0); m0.set(Calendar.MILLISECOND, 0); m0.add(Calendar.MINUTE, 1); }
+        for (int i = 0; i < 49 * 60; i++) {
+            int h = m0.get(Calendar.HOUR_OF_DAY), mi = m0.get(Calendar.MINUTE);
+            int dm = h * 60 + mi;
+            // في ساعة آخر تذكير: أول الساعة فقط
+            if (dm % step < 2 && inWindow(h, from, to) && (h != to || mi < 2)) return m0.getTimeInMillis();
+            m0.add(Calendar.MINUTE, 1);
+        }
+        return now + 1_200_000L;
+    }
+
+    static long computeNextOld(long now, int from, int to, boolean half, int step) {
         Calendar base = Calendar.getInstance();
         base.setTimeInMillis(now);
         base.set(Calendar.MINUTE, 0);

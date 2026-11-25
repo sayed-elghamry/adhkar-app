@@ -319,14 +319,12 @@ function inWindow(h){var a=S.settings.from,b=S.settings.to;return a<=b?(h>=a&&h<
 function tick(){
   if(NATIVE||!S.settings.hourly)return;
   var d=new Date(),key=today()+'-'+d.getHours();
-  if(d.getMinutes()<=1&&S.lastHour!==key+d.getMinutes()&&inWindow(d.getHours())){
-    S.lastHour=key+d.getMinutes();persist();
-    showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
-  }
-  var mm=d.getMinutes(),hk=key+'m'+mm;
-  var ten=S.settings.step===10,kd=ten?Math.floor(mm/10)%3:(mm>=20&&mm<30?1:mm>=40&&mm<50?2:0);
-  if(S.settings.half!==false&&kd>0&&mm%10<2&&(ten||mm===20||mm===21||mm===40||mm===41)&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
-    S.lastHour=hk;persist();showToast(kd===1?'أستغفر الله العظيم وأتوب إليه':'لا حول ولا قوة إلا بالله',kd===1?'istighfar.mp3':'hawqala.mp3');
+  var st=stepMin(),dm=d.getHours()*60+d.getMinutes(),hk=key+'m'+d.getMinutes();
+  if(dm%st<2&&S.lastHour!==hk&&inWindow(d.getHours())&&(d.getHours()!==S.settings.to||d.getMinutes()<2)){
+    S.lastHour=hk;persist();
+    var kd=S.settings.half!==false?Math.floor(dm/st)%3:0;
+    if(kd===0)showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
+    else showToast(kd===1?'أستغفر الله العظيم وأتوب إليه':'لا حول ولا قوة إلا بالله',kd===1?'istighfar.mp3':'hawqala.mp3');
   }
   if(ten&&S.settings.half!==false&&(mm===30||mm===31)&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
     S.lastHour=hk;persist();showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
@@ -336,7 +334,7 @@ setInterval(tick,15000);
 
 function syncNative(){
   if(!Reminder)return Promise.resolve();
-  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false,step:S.settings.step===10?10:20})
+  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false,step:stepMin()})
     .then(function(r){NS=r;return r}).catch(function(){});
 }
 function refreshNative(){
@@ -349,6 +347,7 @@ function fmtTime(ms){
   var sameDay=dkey(d)===today();
   return (sameDay?'اليوم':'غدًا')+' الساعة '+ar(h12)+':'+ar(String(m).padStart(2,'0'))+' '+(pm?'م':'ص');
 }
+function stepMin(){var v=+S.settings.step;return [10,20,30,40,50,60].indexOf(v)>=0?v:20}
 function nextReminderText(){
   if(!S.settings.hourly)return 'التذكير الساعي متوقف';
   if(NATIVE){
@@ -567,9 +566,9 @@ function renderSettings(){
   function hourOpts(sel){var o='';for(var h=0;h<24;h++){var h12=h%12||12;o+='<option value="'+h+'"'+(h===sel?' selected':'')+'>'+ar(h12)+':٠٠ '+(h>=12?'م':'ص')+'</option>'}return o}
   var html=
    '<div class="card"><b style="font-size:18px">التذكير بالصلاة على النبي ﷺ</b>'+
-    '<div class="sw"><span>تذكير كل ساعة</span><input type="checkbox" id="sHourly" '+(s.hourly?'checked':'')+'></div>'+
-    '<div class="sw"><span>أذكار ثلث الساعة<small class="sub" style="display:block">الصلاة على النبي ﷺ أول الساعة، «أستغفر الله» عند الدقيقة ٢٠، و«لا حول ولا قوة إلا بالله» عند الدقيقة ٤٠، وكل ذكر يتكرر مرتين خلال دقيقتين</small></span><input type="checkbox" id="sHalf" '+(s.half!==false?'checked':'')+'></div>'+
-    '<div class="sw"><span>ترتيب التنبيهات<small class="sub" style="display:block">'+(s.step===10?'كل ١٠ دقائق بالتتابع: صلاة على النبي ﷺ ← استغفار ← حوقلة، وكل ذكر مرتين':'كل ٢٠ دقيقة: الصلاة أول الساعة، الاستغفار عند ٢٠، الحوقلة عند ٤٠')+'</small></span><select id="sStep"><option value="20"'+(s.step!==10?' selected':'')+'>كل ٢٠ دقيقة</option><option value="10"'+(s.step===10?' selected':'')+'>كل ١٠ دقائق</option></select></div>'+
+    '<div class="sw"><span>تشغيل تذكير الأذكار</span><input type="checkbox" id="sHourly" '+(s.hourly?'checked':'')+'></div>'+
+    '<div class="sw"><span>الاستغفار والحوقلة مع الصلاة على النبي ﷺ<small class="sub" style="display:block">بالتتابع: صلاة على النبي ﷺ ← «أستغفر الله» ← «لا حول ولا قوة إلا بالله»، وكل ذكر يتكرر مرتين خلال دقيقتين. لو أطفأتها: الصلاة على النبي ﷺ فقط</small></span><input type="checkbox" id="sHalf" '+(s.half!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>المدة بين كل تنبيه<small class="sub" style="display:block">'+(stepMin()===60?'تنبيه كل ساعة':'تنبيه كل '+ar(stepMin())+' دقيقة')+'</small></span><select id="sStep">'+[10,20,30,40,50,60].map(function(v){return '<option value="'+v+'"'+(stepMin()===v?' selected':'')+'>'+(v===60?'كل ساعة':'كل '+ar(v)+' دقيقة')+'</option>'}).join('')+'</select></div>'+
     '<div class="sw"><span>من الساعة</span><select id="sFrom">'+hourOpts(s.from)+'</select></div>'+
     '<div class="sw"><span>إلى الساعة</span><select id="sTo">'+hourOpts(s.to)+'</select></div>'+
     (NATIVE?'<div class="sw"><span>تشغيل الصوت حتى في الوضع الصامت<small class="sub" style="display:block">يُسمع على مستوى صوت المنبّه</small></span><input type="checkbox" id="sLoud" '+(s.loud?'checked':'')+'></div>':'')+

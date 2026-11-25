@@ -29,7 +29,7 @@ const CSS = `
 .sh-ctl.on{transform:none}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) #shImg.qa{filter:invert(.9) hue-rotate(180deg)}}
 :root[data-theme=dark] #shImg.qa{filter:invert(.9) hue-rotate(180deg)}
-body.reading{padding:0}
+body.reading{padding:0;background:var(--shbg,var(--bg))}
 body.reading .wrap{max-width:none}
 body.reading header,body.reading nav{display:none}
 .q-top{position:sticky;top:0;z-index:3;background:var(--bg);padding:6px 0}
@@ -62,6 +62,24 @@ body.reading header,body.reading nav{display:none}
 .q-juz{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .q-juz button{padding:10px 0}
 .q-credit{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.7}
+.sh-sheet{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
+.sh-sheet>div{background:var(--card);color:var(--ink);width:100%;max-height:85vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 14px calc(env(safe-area-inset-bottom) + 16px)}
+.sh-sheet h3{margin:0 0 4px;font:700 17px 'Tajawal';text-align:center}
+.bm-h{text-align:center;margin:4px 0 10px}.bm-h b{font:700 18px 'Tajawal';display:block}.bm-h small{color:var(--muted);font-size:12.5px;line-height:1.7;display:block}
+.bm-sec{font:700 14px 'Tajawal';color:var(--gold);margin:4px 2px 8px}
+.bm{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-right:6px solid var(--c);border-radius:14px;padding:12px;margin-bottom:10px;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.bm .dot{width:14px;height:14px;border-radius:50%;background:var(--c);flex:0 0 auto}
+.bm .bi{flex:1;min-width:0}.bm .bi b{display:block;font:700 16px 'Tajawal';color:var(--c)}
+.bm .bi span{display:block;font-size:13px;margin-top:3px}.bm .bi small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.bm .go{background:var(--c);color:#fff;border:0;border-radius:10px;padding:8px 10px;font:600 13px 'Tajawal';white-space:nowrap}
+.bm.empty .bi span{color:var(--muted)}
+.th{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--card)}
+.th.on{border:2px solid var(--gold)}
+.th .pv{padding:16px 10px;text-align:center;font:400 24px 'Amiri',serif}
+.th .ft{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.th .ft div{flex:1}.th .ft b{display:block;font:700 15px 'Tajawal'}.th .ft small{color:var(--muted);font-size:12px}
+.th .ft button{border:0;border-radius:10px;padding:8px 12px;font:600 13px 'Tajawal';background:var(--green);color:#fff}
+.th.on .ft button{background:transparent;color:var(--ok);font-weight:700}
 `;
 let cssDone = false;
 function ensureCss() {
@@ -265,6 +283,83 @@ function shSurahOf(leaf) { let i = 0; while (i + 1 < SH_SURA.length && SH_SURA[i
 const SH_Q = [1,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,38,40,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,84,86,89,91,92,94,96,98,100,102,105,107,109,111,114,115,117,119,120,122,125,127,129,131,134,136,138,140,142,144,146,147,150,152,154,156,157,159,161,163,165,167,169,171,174,176,178,180,182,184,186,188,190,193,195,198,200,202,204,206,208,210,212,215,217,220,222,224,226,228,230,232,234,236,238,241,243,246,247,249,251,254,256,259,261,263,265,267,269,271,273,275,277,279,281,283,286,288,290,292,294,296,299,301,303,305,307,309,312,314,316,319,320,323,324,327,329,331,333,335,337,340,342,344,347,349,350,352,354,356,358,360,362,365,367,369,371,373,376,378,380,382,385,387,389,391,393,395,397,400,401,403,405,407,409,411,414,416,419,422,424,426,429,431,433,435,437,439,442,444,446,448,451,454,456,458,460,463,465,468,470,473,475,477,479,481,484,487,490,492,495,497,500,502,504,507,510,513,516];
 function shHizbOf(leaf) { let i = 0; while (i + 1 < SH_Q.length && SH_Q[i + 1] <= leaf) i++; return Math.floor(i / 4) + 1; }
 function shJuzOf(leaf) { let i = 0; while (i + 1 < SH_JUZ.length && SH_JUZ[i + 1] <= leaf) i++; return i + 1; }
+// العلامات الخمس الملونة
+const BM_DEF = [['الورد اليومي', '#d64545'], ['الحفظ والمراجعة', '#2e9b57'], ['قراءة التدبر', '#2f6fd6'], ['قيام الليل', '#c29b1f'], ['علامة مرجعية ٥', '#8a4fd0']];
+function BM() {
+  const sh = SH();
+  if (!sh.bm) {
+    const old = sh.marks || [];
+    sh.bm = BM_DEF.map(([n], i) => ({ name: n, leaf: old[i] != null ? old[i] : null, at: old[i] != null ? Date.now() : 0 }));
+  }
+  return sh.bm;
+}
+const p2 = (n) => String(n).padStart(2, '0');
+function bmDate(t) {
+  const d = new Date(t); let h = d.getHours(); const pm = h >= 12; h = h % 12 || 12;
+  return d.getFullYear() + '/' + p2(d.getMonth() + 1) + '/' + p2(d.getDate()) + ' - ' + p2(h) + ':' + p2(d.getMinutes()) + (pm ? ' م' : ' ص');
+}
+function bmCard(i, withGo) {
+  const b = BM()[i], c = BM_DEF[i][1], has = b.leaf != null;
+  const nm = has && M ? M.surahs[shSurahOf(b.leaf) - 1].nameAr : '';
+  return '<div class="bm' + (has ? '' : ' empty') + '" data-bm="' + i + '" style="--c:' + c + '"><span class="dot"></span><div class="bi"><b>' + esc(b.name) + '</b>' +
+    (has ? '<span>سورة ' + esc(nm) + ' • صفحة ' + AR(shPrinted(b.leaf)) + ' • الجزء ' + AR(shJuzOf(b.leaf)) + '</span><small>' + bmDate(b.at) + '</small>'
+      : '<span>فارغة، احفظ فيها صفحة من زر 🔖 أثناء القراءة</span>') + '</div>' +
+    (has && withGo ? '<button class="go" data-go="' + i + '">انتقال ص ' + AR(shPrinted(b.leaf)) + '</button>' : '') + '</div>';
+}
+function sheet(html) {
+  const el = document.createElement('div'); el.className = 'sh-sheet';
+  el.innerHTML = '<div>' + html + '</div>';
+  el.onclick = (e) => { if (e.target === el) el.remove(); };
+  document.body.appendChild(el);
+  return el;
+}
+function bmEdit(i, after) {
+  const b = BM()[i];
+  const el = sheet('<h3 style="color:' + BM_DEF[i][1] + '">' + esc(b.name) + '</h3>' +
+    '<div class="sub" style="margin:8px 0 4px">اسم العلامة</div><input id="bmName" value="' + esc(b.name) + '" style="width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px;font:500 15px Tajawal">' +
+    '<div class="row" style="margin-top:12px;gap:8px;justify-content:flex-start;flex-wrap:wrap"><button class="pri" id="bmSave">حفظ الاسم</button>' +
+    (b.leaf != null ? '<button class="ghost" id="bmClr">مسح العلامة</button>' : '') +
+    '<button class="ghost" id="bmDef">الاسم الأصلي</button><button class="ghost" id="bmX">إلغاء</button></div>');
+  const done = () => { ctx.persist(); el.remove(); after(); };
+  el.querySelector('#bmSave').onclick = () => { const v = el.querySelector('#bmName').value.trim(); if (v) b.name = v.slice(0, 30); done(); };
+  el.querySelector('#bmDef').onclick = () => { b.name = BM_DEF[i][0]; done(); };
+  el.querySelector('#bmX').onclick = () => el.remove();
+  const clr = el.querySelector('#bmClr'); if (clr) clr.onclick = () => { b.leaf = null; b.at = 0; done(); };
+}
+// ضغط مطوّل على العلامة = تسمية أو مسح
+function bindBm(root, onTap, after) {
+  root.querySelectorAll('.bm').forEach((el) => {
+    const i = +el.dataset.bm; let t = null, long = false, sx = 0, sy = 0;
+    const cancel = () => { clearTimeout(t); t = null; };
+    el.addEventListener('touchstart', (e) => { long = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY; cancel(); t = setTimeout(() => { long = true; t = null; bmEdit(i, after); }, 550); }, { passive: true });
+    el.addEventListener('touchmove', (e) => { if (Math.abs(e.touches[0].clientX - sx) > 10 || Math.abs(e.touches[0].clientY - sy) > 10) cancel(); }, { passive: true });
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!long) { cancel(); long = true; bmEdit(i, after); } });
+    el.onclick = (e) => { if (long) { long = false; return; } onTap(i, e); };
+  });
+}
+// مظهر القراءة: فلاتر عرض فقط، صور المصحف نفسها لا تتغير أبدًا
+const SH_TH = [
+  ['orig', '📜 المظهر الأصلي (كريمي الشمرلي)', 'ألوان المصحف الأصلية', '#fffbef', '#1b1b1b', 'none', '', 'linear-gradient(#1d3a2c,#3d5a48)'],
+  ['warm', '☀️ ورقي دافئ (حماية للعين)', 'تقليل الأشعة الزرقاء للقراءة الطويلة', '#f4e3c1', '#3b2a14', 'sepia(.35) saturate(1.1)', 'multiply', 'linear-gradient(#5a3e1c,#7a5a30)'],
+  ['green', '🌿 أخضر هادئ', 'خلفية خضراء لطيفة ومريحة', '#dcebd3', '#1c2b1a', 'none', 'multiply', 'linear-gradient(#2f5a3a,#4a7a55)'],
+  ['bright', '💡 نهاري ساطع (عالي التباين)', 'تباين عالٍ للإضاءة النهارية', '#ffffff', '#000000', 'contrast(1.5) brightness(1.02)', '', 'linear-gradient(#0f2a1e,#1d3a2c)'],
+  ['dark', '🌙 وضع ليلي مريح (داكن)', 'خط كريمي على خلفية داكنة للظلام', '#1f1c17', '#eadfc4', 'invert(.92) hue-rotate(180deg) sepia(.35)', '', 'linear-gradient(#141210,#24201a)'],
+  ['amoled', '🖤 وضع ليلي أسود (AMOLED)', 'توفير أقصى للبطارية في الإضاءة المنخفضة', '#000000', '#cfcfcf', 'invert(1) hue-rotate(180deg) brightness(.82)', '', '#000']
+];
+function appDark() {
+  const t = document.documentElement.dataset.theme;
+  return t === 'dark' || (t !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+function shTheme() { const k = Q().shTheme || (appDark() ? 'dark' : 'orig'); return SH_TH.find((t) => t[0] === k) || SH_TH[0]; }
+function themeCards() {
+  const cur = shTheme()[0];
+  return SH_TH.map((t) => '<div class="th' + (t[0] === cur ? ' on' : '') + '" data-th="' + t[0] + '"><div class="pv" style="background:' + t[3] + ';color:' + t[4] + '">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>' +
+    '<div class="ft"><div><b>' + t[1] + '</b><small>' + t[2] + '</small></div><button>' + (t[0] === cur ? 'مفعل حالياً ✓' : 'اختيار') + '</button></div></div>').join('');
+}
+function bindThemes(root, after) {
+  root.querySelectorAll('.th[data-th]').forEach((el) => el.onclick = () => { Q().shTheme = el.dataset.th; ctx.persist(); after(); });
+}
 let shSt = null;   // حالة التحميل من الجهاز
 function R() { return ctx && ctx.R; }
 function refreshShStatus() {
@@ -303,9 +398,11 @@ function renderShamIndex(m) {
     body = '<div class="card"><div class="sub" style="margin-bottom:8px">اختر الجزء</div><div class="q-juz">' +
       SH_JUZ.map((p, i) => '<button class="q-btn" data-l="' + p + '">' + AR(i + 1) + '</button>').join('') + '</div></div>';
   } else if (idxTab === 'marks') {
-    body = '<div class="card q-list">' + (sh.marks.length ? sh.marks.map((l) =>
-      '<div class="it" data-l="' + l + '"><span class="num">🔖</span><span class="nm">' + esc(m.surahs[shSurahOf(l) - 1].nameAr) + '<small>الجزء ' + AR(shJuzOf(l)) + '</small></span><span class="pg">ص ' + AR(shPrinted(l)) + '</span></div>').join('')
-      : '<div class="sub">لا توجد علامات بعد. اضغط 🔖 أثناء القراءة لحفظ الصفحة.</div>') + '</div>';
+    body = '<div class="card"><div class="bm-h"><b>متابعة القراءة والعلامات المرجعية</b><small>اختر علامة للانتقال إليها أو اضغط مطولاً لتسميتها أو مسحها</small></div>' +
+      '<div class="bm-sec">الفواصل والعلامات الملونة الخمس</div>' + BM().map((_, i) => bmCard(i, true)).join('') + '</div>';
+  } else if (idxTab === 'look') {
+    body = '<div class="card"><div class="bm-h"><b>مظهر القراءة والوضع الليلي</b><small>فلاتر لونية متقدمة تحافظ على دقة خط مصحف الشمرلي وتريح العين</small></div>' + themeCards() +
+      '<div class="sub" style="text-align:center;line-height:1.8">الألوان تتغير على الشاشة فقط، وصفحات المصحف نفسها محفوظة كما هي بدون أي تعديل.</div></div>';
   } else if (idxTab === 'dl') {
     const st = shSt || { done: 0, total: SH_LEAVES, running: false };
     const pct = Math.round(st.done / st.total * 100);
@@ -331,13 +428,15 @@ function renderShamIndex(m) {
     '<div class="card">' + edSwitch('sham') + '<div class="row"><b style="font-size:18px">مصحف الشمرلي</b>' +
       '<button class="pri" id="shOpen">متابعة القراءة · ص ' + AR(shPrinted(sh.leaf || 1)) + '</button></div>' +
     '<div class="q-tabs">' +
-      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].filter(([k]) => k !== 'dl' || !(shBundled && shBundled.size >= 500) || (shSt && shSt.done > 0)).map(([k, t]) =>
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['look', 'المظهر'], ['dl', 'بلا إنترنت']].filter(([k]) => k !== 'dl' || !(shBundled && shBundled.size >= 500) || (shSt && shSt.done > 0)).map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
     '<div class="q-credit">مصحف الشمرلي بخط محمد سعد إبراهيم «حداد»، نسخة مجانية يجوز نسخها وتداولها لغير الأغراض التجارية. النسخة المصوّرة بالإطار من archive.org، والنسخة الأخف من مشروع Quran Android (files.quran.app).</div>';
   bindEd();
   ctx.view.querySelectorAll('.q-tabs button[data-t]').forEach((b) => b.onclick = () => { idxTab = b.dataset.t; render(); });
   ctx.view.querySelectorAll('[data-l]').forEach((el) => el.onclick = () => { SH().leaf = +el.dataset.l; mode = 'sham'; render(); window.scrollTo(0, 0); });
+  bindBm(ctx.view, (i) => { const b = BM()[i]; if (b.leaf == null) { bmEdit(i, render); return; } SH().leaf = b.leaf; mode = 'sham'; render(); window.scrollTo(0, 0); }, render);
+  bindThemes(ctx.view, render);
   document.getElementById('shOpen').onclick = () => { mode = 'sham'; render(); window.scrollTo(0, 0); };
   ctx.view.querySelectorAll('[data-src]').forEach((b) => b.onclick = () => {
     if (shSrc() === b.dataset.src) return;
@@ -378,15 +477,17 @@ function renderSham() {
   sh.leaf = leaf; ctx.persist(); trackRead('s' + leaf);
   const pageNo = shPrinted(leaf);
   const surahName = M ? M.surahs[shSurahOf(leaf) - 1].nameAr : '';
-  const marked = sh.marks.indexOf(leaf) >= 0;
+  const bmi = BM().findIndex((b) => b.leaf === leaf);
+  const th = shTheme();
   const w = 900;   // دقة كافية للقراءة وأسرع في التحميل
   const wLow = 360;
   document.body.classList.add('reading');
+  document.body.style.setProperty('--shbg', th[3]);
   ctx.view.innerHTML =
-    '<div class="sh-head"><span>سورة ' + esc(surahName) + '</span><span>ص ' + AR(pageNo) + '</span><span>جزء ' + AR(shJuzOf(leaf)) + ' | حزب ' + AR(shHizbOf(leaf)) + '</span></div>' +
-    '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:0;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;touch-action:pan-y">' +
+    '<div class="sh-head" style="background:' + th[7] + '"><span>سورة ' + esc(surahName) + '</span><span>ص ' + AR(pageNo) + '</span><span>جزء ' + AR(shJuzOf(leaf)) + ' | حزب ' + AR(shHizbOf(leaf)) + '</span></div>' +
+    '<div class="q-page" id="qPage" style="background:' + th[3] + ';border-color:' + th[3] + ';position:relative;padding:0;margin:0;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;touch-action:pan-y">' +
       '<div id="shBox" style="position:relative;width:100%;overflow:hidden;transform-origin:center center;will-change:transform">' +
-      '<img id="shImg" class="' + (useQa(leaf) ? 'qa' : '') + '" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
+      '<img id="shImg" class="' + (useQa(leaf) ? 'qa' : '') + '" alt="" draggable="false" style="width:100%;height:auto;display:block;filter:' + th[5] + (th[6] ? ';mix-blend-mode:' + th[6] : '') + '" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
       '</div>' +
       '<div id="shMsg" class="sub" style="position:absolute;top:40%">جارٍ تحميل الصفحة…</div>' +
     '</div>' +
@@ -394,7 +495,8 @@ function renderSham() {
       '<div class="q-bar">' +
         '<button class="q-btn" id="qBack">☰ الفهرس</button>' +
         '<button class="q-btn" id="qHome">⌂ الرئيسية</button>' +
-        '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
+        '<button class="q-btn" id="qLook">🎨 المظهر</button>' +
+        '<button class="q-btn" id="qMark"' + (bmi >= 0 ? ' style="background:' + BM_DEF[bmi][1] + ';color:#fff;border-color:' + BM_DEF[bmi][1] + '"' : '') + '>🔖</button>' +
       '</div>' +
       '<div class="q-bar" style="margin-top:8px">' +
         '<button class="q-btn" id="qNext">→ التالية</button>' +
@@ -495,10 +597,25 @@ function renderSham() {
   }
   document.getElementById('qHome').onclick = () => { document.body.classList.remove('reading'); mode = 'index'; if (ctx.go) ctx.go('home'); };
   document.getElementById('qMark').onclick = () => {
-    const i = sh.marks.indexOf(leaf);
-    if (i >= 0) sh.marks.splice(i, 1); else sh.marks.unshift(leaf);
-    ctx.persist(); renderSham();
+    const el = sheet('<h3>حفظ ص ' + AR(pageNo) + ' في علامة</h3><div class="sub" style="text-align:center;margin-bottom:10px">اختر لون العلامة، أو اضغط مطولاً لتسميتها أو مسحها</div>' + BM().map((_, i) => bmCard(i, false)).join(''));
+    bindBm(el, (i) => { const b = BM()[i]; b.leaf = leaf; b.at = Date.now(); ctx.persist(); el.remove(); renderSham(); }, () => { el.remove(); renderSham(); document.getElementById('qMark').click(); });
   };
+  document.getElementById('qLook').onclick = () => {
+    const el = sheet('<h3>مظهر القراءة</h3><div class="sub" style="text-align:center;margin-bottom:10px">الألوان على الشاشة فقط، وصفحات المصحف كما هي</div>' + themeCards());
+    bindThemes(el, () => { el.remove(); renderSham(); });
+  };
+  // أول مرة: اعرض تحميل المصحف كله ليعمل بلا إنترنت
+  if (R() && R().shamarlyDownload && !Q().shAsked && shSt && shSt.done < shSt.total && !shSt.running) {
+    Q().shAsked = 1; ctx.persist();
+    const el = sheet('<h3>تحميل المصحف للقراءة بلا إنترنت</h3><div class="sub" style="line-height:1.9;margin:8px 0 12px;text-align:center">تحب تحمّل مصحف الشمرلي كامل مرة واحدة (حوالي ' + (shSrc() === 'qa' ? '١٢٠' : '١٨٠') + ' ميجا) عشان يشتغل بعد كده من غير نت؟<br>يفضل تكون على واي فاي. ولو اخترت «بعدين» الصفحات اللي تقراها هتتحفظ لوحدها، وتقدر تحمّل الكل من الفهرس ← بلا إنترنت.</div>' +
+      '<div class="row" style="gap:8px;justify-content:center"><button class="pri" id="shAskY">تحميل الآن</button><button class="ghost" id="shAskN">بعدين</button></div>');
+    el.querySelector('#shAskN').onclick = () => el.remove();
+    el.querySelector('#shAskY').onclick = () => {
+      R().shamarlyDownload({ src: shSrc() }).then((st) => { shSt = st; }).catch(() => {});
+      el.firstChild.innerHTML = '<h3>✓ بدأ التحميل</h3><div class="sub" style="text-align:center;line-height:1.9;margin:8px 0">سيب التطبيق مفتوح لحد ما يخلص. تقدر تتابع التقدم من الفهرس ← بلا إنترنت.</div><div class="row" style="justify-content:center"><button class="pri" id="shAskOk">تمام</button></div>';
+      el.querySelector('#shAskOk').onclick = () => el.remove();
+    };
+  }
   const num = (v) => parseInt(String(v).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)), 10);
   document.getElementById('qGo').onclick = () => {
     const t = num(prompt('رقم الصفحة', String(pageNo)) || '');
@@ -561,6 +678,7 @@ function renderSham() {
 function render() {
   if (!M) return;
   if (mode !== 'sham') document.body.classList.remove('reading');
+  document.querySelectorAll('.sh-sheet').forEach((e) => e.remove());
   if (mode === 'page') renderPage(M);
   else if (mode === 'sham') renderSham();
   else renderIndex(M);

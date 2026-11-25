@@ -23,8 +23,8 @@ function mushaf() {
 }
 
 const CSS = `
-.sh-head{display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top) + 6px) 14px 6px;font:500 14px 'Tajawal';color:var(--ink);background:var(--bg);border-bottom:1px solid var(--line)}
-.sh-head b{font-weight:700;color:var(--green)}
+.sh-head{display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top) + 8px) 16px 8px;font:500 16px 'Tajawal';color:#fff;background:linear-gradient(#1d3a2c,#3d5a48)}
+.sh-head span{flex:1;text-align:center}.sh-head span:first-child{text-align:right}.sh-head span:last-child{text-align:left}
 .sh-ctl{position:fixed;inset:auto 0 0 0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);box-shadow:0 -4px 16px rgba(0,0,0,.15);transform:translateY(110%);transition:transform .2s}
 .sh-ctl.on{transform:none}
 body.reading{padding:0}
@@ -323,7 +323,8 @@ function renderShamIndex(m) {
 }
 const shLoaded = {};
 let shZoom = 1;
-let shCtl = true;   // أزرار التحكم ظاهرة أول مرة
+let shCtl = false;
+let shHinted = false;   // أول دخول: تظهر الأزرار ثانيتين ثم تختفي
 const shCrop = {};
 let shLastCrop = null;
 function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
@@ -339,7 +340,7 @@ function renderSham() {
   const wLow = 360;
   document.body.classList.add('reading');
   ctx.view.innerHTML =
-    '<div class="sh-head"><b>سورة ' + esc(surahName) + '</b><span>الجزء ' + AR(shJuzOf(leaf)) + '</span><b>صفحة ' + AR(pageNo) + '</b></div>' +
+    '<div class="sh-head"><span>سورة ' + esc(surahName) + '</span><span>ص ' + AR(pageNo) + '</span><span>جزء ' + AR(shJuzOf(leaf)) + '</span></div>' +
     '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:0;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;touch-action:pan-y">' +
       '<div id="shBox" style="position:relative;width:100%;overflow:hidden;transform-origin:center center;will-change:transform">' +
       '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
@@ -441,6 +442,11 @@ function renderSham() {
   document.getElementById('qNext').onclick = () => go(1);
   document.getElementById('qPrev').onclick = () => go(-1);
   document.getElementById('qBack').onclick = () => { mode = 'index'; Q().ed = 'sham'; render(); };
+  if (!shHinted) {
+    shHinted = true;
+    const el = document.getElementById('shCtl'); el.classList.add('on');
+    setTimeout(() => { if (!shCtl) { const e2 = document.getElementById('shCtl'); if (e2) e2.classList.remove('on'); } }, 2500);
+  }
   document.getElementById('qHome').onclick = () => { document.body.classList.remove('reading'); mode = 'index'; if (ctx.go) ctx.go('home'); };
   document.getElementById('qMark').onclick = () => {
     const i = sh.marks.indexOf(leaf);

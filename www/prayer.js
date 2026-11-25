@@ -79,16 +79,23 @@
   function syncAlarms() {
     var p = P(), R = ctx.R;
     if (!R || !R.setPrayerAlarms) return Promise.resolve();
-    if (p.lat == null) return R.setPrayerAlarms({ enabled: false, times: [] }).catch(function () {});
+    var st = ctx.S.settings || {};
+    var mOn = st.mAlarm !== false, eOn = st.eAlarm !== false, mAt = st.mAt == null ? 360 : st.mAt;
+    // بدون موقع: نحسب المغرب على القاهرة حتى يعمل تنبيه أذكار المساء
+    var loc = p.lat == null ? { lat: 30.0444, lng: 31.2357, method: p.method, madhab: p.madhab } : p;
     var list = [], d = new Date(), now = Date.now();
     for (var i = 0; i < 60; i++) {
       var day = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i, 12);
-      var t = timesFor(p, day);
-      ALARMABLE.forEach(function (k) {
+      var t = timesFor(loc, day);
+      if (p.on && p.lat != null) ALARMABLE.forEach(function (k) {
         if (p.alarms[k] && t[k].getTime() > now) list.push({ t: t[k].getTime(), name: NAMES[k] });
       });
+      var mt = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i, Math.floor(mAt / 60), mAt % 60).getTime();
+      if (mOn && mt > now) list.push({ t: mt, name: 'أذكار الصباح', kind: 'morning' });
+      var et = t.maghrib.getTime() - 15 * 60000;
+      if (eOn && et > now) list.push({ t: et, name: 'أذكار المساء', kind: 'evening' });
     }
-    return R.setPrayerAlarms({ enabled: !!p.on, times: list }).catch(function () {});
+    return R.setPrayerAlarms({ enabled: list.length > 0, times: list }).catch(function () {});
   }
 
   function locate() {
@@ -223,7 +230,9 @@
 
   window.Prayer = {
     show: function (c) { ctx = c; render(); },
-    init: function (c) { ctx = c; syncAlarms(); },   // عند بدء التطبيق: جدّد المواقيت للمنبّه
+    init: function (c) { ctx = c; syncAlarms(); },
+    sync: function (c) { ctx = c; return syncAlarms(); },
+    eveningAt: function (c) { ctx = c; var p = P(); var loc = p.lat == null ? { lat: 30.0444, lng: 31.2357, method: p.method, madhab: p.madhab } : p; var now = new Date(); var t = timesFor(loc, now); var e = new Date(t.maghrib.getTime() - 15 * 60000); if (e < now) { var tm = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12); e = new Date(timesFor(loc, tm).maghrib.getTime() - 15 * 60000); } return fmt(e) + (p.lat == null ? ' (حسب توقيت القاهرة، اختر مدينتك من «المواقيت»)' : ''); },   // عند بدء التطبيق: جدّد المواقيت للمنبّه
     next: function (c) { ctx = c; var p = P(); var n = nextPrayer(p); return n ? { name: n.name, time: fmt(n.at) } : null; },
     leave: function () { stopCompass(); clearInterval(tick); }
   };

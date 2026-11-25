@@ -54,7 +54,10 @@ public class ReminderPlugin extends Plugin {
 
     @PluginMethod
     public void test(PluginCall call) {
-        ReminderScheduler.showNow(getContext(), call.getInt("kind", 0), true, null);
+        int k = call.getInt("kind", 0);
+        if (k == ReminderScheduler.K_MORNING || k == ReminderScheduler.K_EVENING)
+            PrayerScheduler.showAdhkar(getContext(), k == ReminderScheduler.K_MORNING, true, null);
+        else ReminderScheduler.showNow(getContext(), k, true, null);
         call.resolve(status());
     }
 
@@ -161,6 +164,16 @@ public class ReminderPlugin extends Plugin {
         BubbleService.apply(c);
         JSObject r = new JSObject();
         r.put("canDrawOverlays", BubbleService.canDraw(c));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void consumeOpen(PluginCall call) {
+        android.content.SharedPreferences sp = getContext().getSharedPreferences("nav", Context.MODE_PRIVATE);
+        String s = sp.getString("open", "");
+        sp.edit().remove("open").apply();
+        JSObject r = new JSObject();
+        r.put("section", s);
         call.resolve(r);
     }
 

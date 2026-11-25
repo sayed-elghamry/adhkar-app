@@ -102,6 +102,32 @@ public final class PrayerScheduler {
         nm.createNotificationChannel(ch);
     }
 
+    static void showAdhkar(Context c, boolean morning, Runnable onDone) { showAdhkar(c, morning, false, onDone); }
+
+    static void showAdhkar(Context c, boolean morning, boolean force, Runnable onDone) {
+        ReminderScheduler.ensureChannel(c);
+        Intent open = new Intent(c, MainActivity.class)
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(MainActivity.EXTRA_OPEN, morning ? "morning" : "evening");
+        PendingIntent content = PendingIntent.getActivity(c, morning ? 3 : 4, open,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        String title = morning ? "أذكار الصباح ☀" : "أذكار المساء ☾";
+        String text = morning ? "أصبحنا وأصبح الملك لله، المس هنا لقراءة أذكار الصباح"
+                              : "أمسينا وأمسى الملك لله، المس هنا لقراءة أذكار المساء";
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, ReminderScheduler.CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_reminder)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(content);
+        try { NotificationManagerCompat.from(c).notify(morning ? 7201 : 7202, b.build()); } catch (SecurityException ignored) {}
+        SoundPlayer.play(c, morning ? ReminderScheduler.K_MORNING : ReminderScheduler.K_EVENING, force, onDone);
+    }
+
     static void show(Context c, String name) {
         ensureChannel(c);
         PendingIntent content = PendingIntent.getActivity(c, 1, new Intent(c, MainActivity.class)
@@ -123,12 +149,25 @@ public final class PrayerScheduler {
         @Override
         public void onReceive(Context c, Intent intent) {
             if (!ACTION.equals(intent.getAction())) return;
+            final PendingResult pr = goAsync();
+            boolean async = false;
             try {
                 JSONObject p = new JSONObject(prefs(c).getString("pending", "{}"));
                 long late = System.currentTimeMillis() - p.optLong("t", 0);
-                if (enabled(c) && late < 20 * 60_000L) show(c, p.optString("name", ""));
-            } catch (Exception ignored) {}
-            reschedule(c);
+                reschedule(c);
+                if (enabled(c) && late < 20 * 60_000L) {
+                    String kind = p.optString("kind", "");
+                    if ("morning".equals(kind) || "evening".equals(kind)) {
+                        async = true;
+                        showAdhkar(c, "morning".equals(kind), pr::finish);
+                    } else {
+                        show(c, p.optString("name", ""));
+                    }
+                }
+            } catch (Exception ignored) {
+                reschedule(c);
+            }
+            if (!async) pr.finish();
         }
     }
 }

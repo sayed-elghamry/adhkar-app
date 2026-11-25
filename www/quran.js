@@ -299,6 +299,7 @@ function renderShamIndex(m) {
   }
 }
 const shLoaded = {};
+let shZoom = 1;
 function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
 function renderSham() {
   const sh = SH();
@@ -316,15 +317,18 @@ function renderSham() {
       '<div class="ttl">' + esc(surahName) + '<small>الشمرلي · الصفحة ' + AR(pageNo) + ' · الجزء ' + AR(shJuzOf(leaf)) + '</small></div>' +
       '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
     '</div></div>' +
-    '<div class="q-page" id="qPage" style="position:relative;padding:4px;min-height:60vh;display:flex;align-items:center;justify-content:center">' +
-      '<img id="shImg" alt="" style="width:100%;height:auto;display:block;border-radius:6px" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
+    '<div class="q-page" id="qPage" style="position:relative;padding:4px;min-height:60vh;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y">' +
+      '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block;border-radius:6px;transform-origin:center center;will-change:transform" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
       '<div id="shMsg" class="sub" style="position:absolute">جارٍ تحميل الصفحة…</div>' +
     '</div>' +
     '<div class="q-bar" style="margin-top:6px">' +
       '<button class="q-btn" id="qNext">→ التالية</button>' +
+      '<button class="q-btn" id="qZout" aria-label="تصغير">－</button>' +
       '<button class="q-btn" id="qGo">انتقال</button>' +
+      '<button class="q-btn" id="qZin" aria-label="تكبير">＋</button>' +
       '<button class="q-btn" id="qPrev">السابقة ←</button>' +
-    '</div>';
+    '</div>' +
+    '<div class="sub" style="text-align:center;margin-top:4px">للتكبير: بإصبعين، أو المس الصفحة مرتين، أو زر ＋</div>';
   const img = document.getElementById('shImg'), msg = document.getElementById('shMsg');
   img.onload = () => {
     if (msg.parentNode) msg.remove();
@@ -368,13 +372,55 @@ function renderSham() {
     if (t >= 1 && t - 1 < SH_LEAVES) { sh.leaf = t - 1; renderSham(); window.scrollTo(0, 0); }
   };
   const pg = document.getElementById('qPage');
-  let x0 = null, y0 = null;
-  pg.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  // ---- التكبير والتحريك ----
+  let tx = 0, ty = 0, hiReq = false;
+  const lim = () => ({ x: (shZoom - 1) * img.clientWidth / 2, y: (shZoom - 1) * img.clientHeight / 2 });
+  const apply = () => {
+    const L = lim();
+    tx = Math.max(-L.x, Math.min(L.x, tx)); ty = Math.max(-L.y, Math.min(L.y, ty));
+    img.style.transform = shZoom > 1 ? 'translate(' + tx + 'px,' + ty + 'px) scale(' + shZoom + ')' : '';
+    pg.style.touchAction = shZoom > 1 ? 'none' : 'pan-y';
+    // عند التكبير حمّل النسخة الأصلية الأوضح (إن توفر الإنترنت)
+    if (shZoom > 1.4 && !hiReq) {
+      hiReq = true;
+      const full = new Image();
+      full.onload = () => { if (SH().leaf === leaf) img.src = full.src; };
+      full.src = shUrl(leaf, 0);
+    }
+  };
+  const setZoom = (z, top) => {
+    shZoom = Math.max(1, Math.min(4, z));
+    if (top) { const L = lim(); tx = L.x; ty = L.y; }   // ابدأ من أعلى يمين الصفحة
+    apply();
+  };
+  if (shZoom > 1) { if (img.complete && img.clientWidth) setZoom(shZoom, true); else img.addEventListener('load', () => setZoom(shZoom, true), { once: true }); }
+  document.getElementById('qZin').onclick = () => setZoom(shZoom + 0.5, shZoom === 1);
+  document.getElementById('qZout').onclick = () => setZoom(shZoom - 0.5);
+  let x0 = null, y0 = null, px = 0, py = 0, d0 = 0, z0 = 1, pinch = false, lastTap = 0;
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  pg.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) { pinch = true; d0 = dist(e.touches) || 1; z0 = shZoom; x0 = null; return; }
+    x0 = px = e.touches[0].clientX; y0 = py = e.touches[0].clientY;
+  }, { passive: true });
+  pg.addEventListener('touchmove', (e) => {
+    if (pinch && e.touches.length === 2) { e.preventDefault(); shZoom = Math.max(1, Math.min(4, z0 * dist(e.touches) / d0)); apply(); return; }
+    if (shZoom > 1 && e.touches.length === 1 && x0 !== null) {
+      e.preventDefault();
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      tx += x - px; ty += y - py; px = x; py = y; apply();
+    }
+  }, { passive: false });
   pg.addEventListener('touchend', (e) => {
+    if (pinch) { if (e.touches.length === 0) pinch = false; x0 = null; return; }
     if (x0 === null) return;
     const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
     x0 = null;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx > 0 ? 1 : -1);
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {   // لمستان سريعتان = تكبير/تصغير
+      const now = Date.now();
+      if (now - lastTap < 320) { lastTap = 0; setZoom(shZoom > 1 ? 1 : 2.2, true); } else lastTap = now;
+      return;
+    }
+    if (shZoom === 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx > 0 ? 1 : -1);
   });
 }
 

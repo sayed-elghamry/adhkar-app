@@ -83,7 +83,14 @@ public final class PrayerScheduler {
         try {
             long t = n.getLong("t");
             prefs(c).edit().putString("pending", n.toString()).apply();
-            if (ReminderScheduler.canScheduleExact(c)) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t, p);
+            if (ReminderScheduler.canScheduleExact(c)) {
+                // منبّه من نوع «ساعة منبّه»: أعلى أولوية، لا يؤجله توفير البطارية ولا أنظمة مثل ColorOS
+                PendingIntent show = PendingIntent.getActivity(c, 7104, new Intent(c, MainActivity.class)
+                    .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(MainActivity.EXTRA_OPEN, "times"),
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                try { am.setAlarmClock(new AlarmManager.AlarmClockInfo(t, show), p); }
+                catch (Exception e) { am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t, p); }
+            }
             else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t, p);
             return t;
         } catch (Exception e) { return 0; }
@@ -181,6 +188,24 @@ public final class PrayerScheduler {
         try { NotificationManagerCompat.from(c).notify(NOTIF, b.build()); } catch (SecurityException ignored) {}
     }
 
+    static void showLate(Context c, String name, long t) {
+        ensureChannel(c);
+        java.util.Calendar k = java.util.Calendar.getInstance(); k.setTimeInMillis(t);
+        int h = k.get(java.util.Calendar.HOUR); if (h == 0) h = 12;
+        String at = h + ":" + String.format(java.util.Locale.US, "%02d", k.get(java.util.Calendar.MINUTE));
+        PendingIntent content = PendingIntent.getActivity(c, 1, new Intent(c, MainActivity.class)
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_reminder)
+            .setContentTitle("دخل وقت صلاة " + name + " (" + at + ")")
+            .setContentText("تأخر التنبيه بسبب توفير البطارية في الهاتف")
+            .setSilent(true)
+            .setAutoCancel(true)
+            .setContentIntent(content);
+        try { NotificationManagerCompat.from(c).notify(NOTIF, b.build()); } catch (SecurityException ignored) {}
+    }
+
     public static class Receiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context c, Intent intent) {
@@ -191,7 +216,11 @@ public final class PrayerScheduler {
                 JSONObject p = new JSONObject(prefs(c).getString("pending", "{}"));
                 long late = System.currentTimeMillis() - p.optLong("t", 0);
                 reschedule(c);
-                if (enabled(c) && late < 20 * 60_000L) {
+                String kind0 = p.optString("kind", "");
+                if (enabled(c) && late >= 20 * 60_000L && late < 3 * 3600_000L && kind0.isEmpty()) {
+                    // تأخر النظام في التنبيه: إشعار بدون صوت بدل ما يضيع
+                    showLate(c, p.optString("name", ""), p.optLong("t", 0));
+                } else if (enabled(c) && late < 20 * 60_000L) {
                     String kind = p.optString("kind", "");
                     if ("morning".equals(kind) || "evening".equals(kind)) {
                         async = true;

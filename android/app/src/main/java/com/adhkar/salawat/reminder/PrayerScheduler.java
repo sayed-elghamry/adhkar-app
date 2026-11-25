@@ -141,6 +141,25 @@ public final class PrayerScheduler {
         try { NotificationManagerCompat.from(c).notify(id, b.build()); } catch (SecurityException ignored) {}
     }
 
+    /** منبّه قبل الفجر: بنغمة المنبّه في الهاتف (قناة المواقيت). */
+    static void showWake(Context c, String title, String text) {
+        ensureChannel(c);
+        PendingIntent content = PendingIntent.getActivity(c, 2, new Intent(c, MainActivity.class)
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_reminder)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(content);
+        try { NotificationManagerCompat.from(c).notify(7103, b.build()); } catch (SecurityException ignored) {}
+    }
+
     static void show(Context c, String name) {
         if (prefs(c).getBoolean("adhan", true)) {
             PlaybackService.start(c, ReminderScheduler.K_ADHAN, NOTIF, "حان الآن موعد صلاة " + name, "حيّ على الصلاة، حيّ على الفلاح", "", false);
@@ -177,6 +196,8 @@ public final class PrayerScheduler {
                     if ("morning".equals(kind) || "evening".equals(kind)) {
                         async = true;
                         showAdhkar(c, "morning".equals(kind), pr::finish);
+                    } else if ("prefajr".equals(kind)) {
+                        showWake(c, p.optString("name", ""), p.optString("text", ""));
                     } else if ("note".equals(kind)) {
                         showNote(c, 7500 + p.optInt("id", 0), p.optString("name", ""), p.optString("text", ""), p.optString("open", ""));
                     } else {

@@ -585,6 +585,7 @@ function renderSettings(){
   function mOpts(sel,a,b,st){var o='';for(var m=a;m<=b;m+=st)o+='<option value="'+m+'"'+(m===sel?' selected':'')+'>'+ar(m)+' دقيقة</option>';return o}
   html+='<div class="card"><b style="font-size:18px">الأذان والتذكيرات</b>'+
     '<div class="sw"><span>صوت الأذان عند كل صلاة<small class="sub" style="display:block">بصوت الشيخ نصر الدين طوبار، للصلوات المفعّلة في «المواقيت»</small></span><input type="checkbox" id="sAdhan" '+(s.adhan!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>منبّه قبل الفجر<small class="sub" style="display:block">بنغمة منبّه الهاتف ليوقظك قبل الأذان</small></span><select id="sPreFajr">'+[[0,'مقفول'],[5,'قبلها بـ٥ دقائق'],[10,'قبلها بـ١٠ دقائق'],[15,'قبلها بـ١٥ دقيقة']].map(function(x){return '<option value="'+x[0]+'"'+((s.preFajr||0)===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></div>'+
     '<div class="sw"><span>تذكير صلاة الضحى</span><input type="checkbox" id="sDuha" '+(s.duha!==false?'checked':'')+'></div>'+
     '<div class="sw"><span>بعد الشروق بـ</span><select id="sDuhaMin">'+mOpts(s.duhaMin==null?20:s.duhaMin,15,60,5)+'</select></div>'+
     '<div class="sw"><span>تذكير الجمعة<small class="sub" style="display:block">سورة الكهف والصلاة على النبي ﷺ، الساعة ٩ صباحًا</small></span><input type="checkbox" id="sFri" '+(s.friday!==false?'checked':'')+'></div>'+
@@ -628,6 +629,7 @@ function renderSettings(){
   function syncTimes(){if(window.Prayer&&window.adhan)Prayer.sync(pctx())}
   bind('sMorn','mAlarm',syncTimes);
   bind('sAdhan','adhan',syncTimes);bind('sDuha','duha',syncTimes);bind('sFri','friday',syncTimes);bind('sFast','fast',syncTimes);
+  $('sPreFajr').onchange=function(){s.preFajr=+this.value;persist();syncTimes()};
   $('sDuhaMin').onchange=function(){s.duhaMin=+this.value;persist();syncTimes()};
   $('sTheme').onchange=function(){s.theme=this.value;persist();applyLook()};
   $('sFs').onchange=function(){s.fs=+this.value;persist();applyLook()};

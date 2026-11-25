@@ -100,6 +100,8 @@
       // صلاة الضحى: بعد الشروق بعدد دقائق يختاره المستخدم
       var dt = t.sunrise.getTime() + (st.duhaMin == null ? 20 : st.duhaMin) * 60000;
       if (st.duha !== false && dt > now) list.push({ t: dt, kind: 'note', id: 1, name: 'صلاة الضحى ☀', text: 'دخل وقت صلاة الضحى. «ويُجزئ من ذلك ركعتان يركعهما من الضحى» (رواه مسلم)' });
+      // منبّه قبل الفجر (اختياري): ٥ أو ١٠ أو ١٥ دقيقة
+      if (st.preFajr) { var pf = t.fajr.getTime() - st.preFajr * 60000; if (pf > now) list.push({ t: pf, kind: 'prefajr', name: 'استيقظ لصلاة الفجر', text: 'باقي ' + AR(st.preFajr) + ' دقائق على أذان الفجر. «الصلاة خير من النوم»' }); }
       var dow = day.getDay();
       // الجمعة: سورة الكهف والصلاة على النبي
       var ft = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0).getTime();

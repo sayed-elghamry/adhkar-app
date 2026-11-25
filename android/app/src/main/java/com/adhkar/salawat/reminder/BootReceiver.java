@@ -12,5 +12,6 @@ public class BootReceiver extends BroadcastReceiver {
         ReminderScheduler.reschedule(context);
         PrayerScheduler.reschedule(context);
         BubbleService.apply(context);
+        PrayerWidget.refreshAll(context);
     }
 }

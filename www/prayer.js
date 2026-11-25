@@ -117,6 +117,17 @@
         if (why.length && nt > now) list.push({ t: nt, kind: 'note', id: 3, name: 'تذكير بالصيام غدًا', text: 'غدًا: ' + why.join('، و') + '. لا تنسَ نية الصيام والسحور، فإن في السحور بركة.' });
       }
     }
+    // بيانات ودجت المواقيت على الشاشة الرئيسية (٤٠ يومًا)
+    if (R.setWidgetTimes) {
+      var wd = [];
+      for (var j = -1; j < 40; j++) {
+        var dd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + j, 12), tt = timesFor(loc, dd), hs = '';
+        try { hs = new Intl.DateTimeFormat('ar-EG-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).format(dd).replace(/\s*هـ$/, ''); } catch (e) {}
+        wd.push({ d: dd.getFullYear() + '-' + String(dd.getMonth() + 1).padStart(2, '0') + '-' + String(dd.getDate()).padStart(2, '0'), h: hs,
+          t: [tt.fajr.getTime(), tt.dhuhr.getTime(), tt.asr.getTime(), tt.maghrib.getTime(), tt.isha.getTime()] });
+      }
+      R.setWidgetTimes({ place: p.lat == null ? 'القاهرة' : (p.place === 'موقعي الحالي' ? 'موقعي' : (p.place || '')), days: wd }).catch(function () {});
+    }
     return R.setPrayerAlarms({ enabled: list.length > 0, times: list, adhan: st.adhan !== false }).catch(function () {});
   }
 

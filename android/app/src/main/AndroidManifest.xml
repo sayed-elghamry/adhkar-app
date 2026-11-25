@@ -55,6 +55,19 @@
                 android:resource="@xml/adhkar_widget_info" />
         </receiver>
 
+        <!-- ودجت مواقيت الصلاة -->
+        <receiver
+            android:name=".reminder.PrayerWidget"
+            android:label="مواقيت الصلاة"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/prayer_widget_info" />
+        </receiver>
+
         <!-- تشغيل الأذان ونغمتي الصباح والمساء -->
         <service
             android:name=".reminder.PlaybackService"

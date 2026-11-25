@@ -158,6 +158,12 @@ public class ReminderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setWidgetTimes(PluginCall call) {
+        PrayerWidget.save(getContext(), call.getString("place", ""), call.getArray("days", new com.getcapacitor.JSArray()));
+        call.resolve();
+    }
+
+    @PluginMethod
     public void setAdhkarDisplay(PluginCall call) {
         Context c = getContext();
         org.json.JSONArray items = call.getArray("items", new com.getcapacitor.JSArray());

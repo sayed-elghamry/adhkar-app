@@ -313,7 +313,7 @@ function renderShamIndex(m) {
     '<div class="card">' + edSwitch('sham') + '<div class="row"><b style="font-size:18px">مصحف الشمرلي</b>' +
       '<button class="pri" id="shOpen">متابعة القراءة · ص ' + AR(shPrinted(sh.leaf || 1)) + '</button></div>' +
     '<div class="q-tabs">' +
-      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].filter(([k]) => k !== 'dl' || !(shBundled && shBundled.size >= 500)).map(([k, t]) =>
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].filter(([k]) => k !== 'dl' || !(shBundled && shBundled.size >= 500) || (shSt && shSt.done > 0)).map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
     '<div class="q-credit">مصحف الشمرلي بخط محمد سعد إبراهيم «حداد»، نسخة مجانية يجوز نسخها وتداولها لغير الأغراض التجارية، مستضافة على archive.org.</div>';

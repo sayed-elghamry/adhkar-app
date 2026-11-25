@@ -277,7 +277,7 @@ let shFiles = {};   // الصفحات المحفوظة على الهاتف: رق
 // حفظ الصفحة على الهاتف بعد قراءتها (مرة واحدة) حتى تفتح بعد ذلك بلا إنترنت
 function cachePage(leaf) {
   if (leaf < 0 || leaf >= SH_LEAVES || shFiles[leaf] || !R() || !R().shamarlyCache) return;
-  shFiles[leaf] = leaf + '.webp';   // يُفترض النجاح؛ إن فشل يعود العرض للإنترنت تلقائيًا
+  shFiles[leaf] = leaf + '.jpg';   // يُفترض النجاح؛ إن فشل يعود العرض للإنترنت تلقائيًا
   R().shamarlyCache({ leaf }).catch(() => {});
 }
 // صفحات مدمجة داخل التطبيق (تُضاف وقت البناء)؛ إن لم توجد نعود للمحفوظ أو للإنترنت
@@ -308,7 +308,7 @@ function renderShamIndex(m) {
     const st = shSt || { done: 0, total: SH_LEAVES, running: false };
     const pct = Math.round(st.done / st.total * 100);
     body = '<div class="card"><b>تحميل المصحف للقراءة بلا إنترنت</b>' +
-      '<div class="sub" style="line-height:1.9;margin:6px 0">كل صفحة تقرأها تُحفظ تلقائيًا على الهاتف. ولتحميل المصحف كله مرة واحدة (حوالي ٤٥ ميجا) اضغط الزر. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
+      '<div class="sub" style="line-height:1.9;margin:6px 0">كل صفحة تقرأها تُحفظ تلقائيًا على الهاتف كما هي من المصدر بدون أي ضغط. ولتحميل المصحف كله مرة واحدة (حوالي ١٨٠ ميجا) اضغط الزر. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
       '<div class="prog"><i style="width:' + pct + '%"></i></div><div class="sub" id="shDlTxt">' + AR(st.done) + ' / ' + AR(st.total) + ' صفحة' + (st.running ? ' · جارٍ التحميل…' : '') + (st.error ? ' · توقف بسبب الاتصال' : '') + '</div>' +
       '<div class="row" style="margin-top:10px;justify-content:flex-start;gap:8px">' +
         (st.running ? '<button class="ghost" id="shStop">إيقاف</button>' : (st.done < st.total ? '<button class="pri" id="shDl">' + (st.done ? 'استكمال التحميل' : 'تحميل الآن') + '</button>' : '<span style="color:var(--ok)">✓ المصحف محفوظ في الهاتف</span>')) +

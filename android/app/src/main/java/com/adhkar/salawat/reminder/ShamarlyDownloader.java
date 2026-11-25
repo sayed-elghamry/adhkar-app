@@ -34,18 +34,17 @@ public final class ShamarlyDownloader {
         return d;
     }
 
-    /** الصفحة تُحفظ مضغوطة (webp بعرض ٨٠٠) لتوفير المساحة: حوالي ٩٠ كيلو بدل ٣٥٠. */
-    public static File file(Context c, int leaf) { return new File(dir(c), leaf + ".webp"); }
-    private static File oldFile(Context c, int leaf) { return new File(dir(c), leaf + ".jpg"); }
+    /** الصفحة تُحفظ كما هي تمامًا من المصدر (بدون أي ضغط أو تعديل) حفاظًا على نص المصحف. */
+    public static File file(Context c, int leaf) { return new File(dir(c), leaf + ".jpg"); }
     private static boolean has(Context c, int leaf) {
-        File f = file(c, leaf), o = oldFile(c, leaf);
-        return (f.exists() && f.length() > 1000) || (o.exists() && o.length() > 1000);
+        File f = file(c, leaf);
+        return f.exists() && f.length() > 1000;
     }
 
     public static int countDone(Context c) {
         String[] names = dir(c).list();
         int n = 0;
-        if (names != null) for (String s : names) if (s.endsWith(".jpg") || s.endsWith(".webp")) n++;
+        if (names != null) for (String s : names) if (s.endsWith(".jpg")) n++;
         return n;
     }
 
@@ -53,7 +52,7 @@ public final class ShamarlyDownloader {
     public static List<String> files(Context c) {
         List<String> out = new ArrayList<>();
         String[] names = dir(c).list();
-        if (names != null) for (String s : names) if (s.endsWith(".jpg") || s.endsWith(".webp")) out.add(s);
+        if (names != null) for (String s : names) if (s.endsWith(".jpg")) out.add(s);
         return out;
     }
 
@@ -70,27 +69,9 @@ public final class ShamarlyDownloader {
     }
 
     private static boolean fetchPage(Context c, int leaf) {
-        File raw = new File(dir(c), leaf + ".raw");
-        boolean ok = fetch("https://archive.org/download/" + ID + "/page/n" + leaf + "_w" + WIDTH + ".jpg", raw);
-        if (!ok) return false;
-        try {
-            Bitmap b = BitmapFactory.decodeFile(raw.getPath());
-            if (b == null) { raw.delete(); return false; }
-            int w = Math.min(800, b.getWidth());
-            Bitmap s = w == b.getWidth() ? b : Bitmap.createScaledBitmap(b, w, Math.round(b.getHeight() * (w / (float) b.getWidth())), true);
-            File tmp = new File(dir(c), leaf + ".tmp");
-            try (FileOutputStream fo = new FileOutputStream(tmp)) {
-                Bitmap.CompressFormat fmt = Build.VERSION.SDK_INT >= 30 ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP;
-                s.compress(fmt, 55, fo);
-            }
-            if (s != b) s.recycle();
-            b.recycle();
-            raw.delete();
-            return tmp.renameTo(file(c, leaf));
-        } catch (Throwable e) {
-            raw.delete();
-            return false;
-        }
+        boolean ok = fetch("https://archive.org/download/" + ID + "/page/n" + leaf + "_w" + WIDTH + ".jpg", file(c, leaf));
+        if (ok) new File(dir(c), leaf + ".webp").delete();   // نسخة مضغوطة قديمة إن وُجدت
+        return ok;
     }
 
     public static boolean running() { return worker != null && worker.isAlive(); }

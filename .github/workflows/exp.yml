@@ -1,0 +1,15 @@
+name: Shamarly compression experiment
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  exp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          pip install --quiet pillow
+          python3 scripts/exp_shamarly.py
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "exp-${{ github.run_number }}" exp.zip --title exp --notes exp --prerelease

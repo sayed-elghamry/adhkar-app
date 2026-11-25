@@ -23,6 +23,7 @@ import java.util.Locale;
 
 /** ودجت مواقيت الصلاة: التاريخ الهجري، الصلاة القادمة مع عدّ تنازلي وشريط، ومواقيت اليوم الخمس. */
 public class PrayerWidget extends AppWidgetProvider {
+    static final String ACTION_BELL = "com.adhkar.salawat.action.PRAYER_WIDGET_BELL";
     static final String ACTION_TICK = "com.adhkar.salawat.action.PRAYER_WIDGET_TICK";
     static final String[] NAMES = {"الفجر", "الظهر", "العصر", "المغرب", "العشاء"};
     static final int[] COL = {R.id.pw_c0, R.id.pw_c1, R.id.pw_c2, R.id.pw_c3, R.id.pw_c4};
@@ -42,6 +43,14 @@ public class PrayerWidget extends AppWidgetProvider {
     @Override
     public void onReceive(Context c, Intent intent) {
         if (ACTION_TICK.equals(intent.getAction())) { refreshAll(c); return; }
+        if (ACTION_BELL.equals(intent.getAction())) {
+            SharedPreferences p = PrayerScheduler.prefs(c);
+            boolean on = !p.getBoolean("adhan", true);
+            p.edit().putBoolean("adhan", on).putBoolean("adhanChanged", true).apply();
+            if (!on) SoundPlayer.stop();
+            android.widget.Toast.makeText(c, on ? "🔔 صوت الأذان يعمل" : "🔕 تم إيقاف صوت الأذان (يظهر إشعار فقط)", android.widget.Toast.LENGTH_SHORT).show();
+            refreshAll(c); return;
+        }
         super.onReceive(c, intent);
     }
 
@@ -122,6 +131,10 @@ public class PrayerWidget extends AppWidgetProvider {
         }
         Intent open = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(MainActivity.EXTRA_OPEN, "times");
         v.setOnClickPendingIntent(R.id.pw_root, PendingIntent.getActivity(c, 7302, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+        boolean adhanOn = PrayerScheduler.prefs(c).getBoolean("adhan", true);
+        v.setTextViewText(R.id.pw_bell, adhanOn ? "🔔" : "🔕");
+        v.setOnClickPendingIntent(R.id.pw_bell, PendingIntent.getBroadcast(c, 7303, new Intent(c, PrayerWidget.class).setAction(ACTION_BELL),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         for (int id : ids) m.updateAppWidget(id, v);
         // تحديث خفيف (بدون إيقاظ الهاتف) كل ١٠ دقائق وعند دخول وقت الصلاة
         AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);

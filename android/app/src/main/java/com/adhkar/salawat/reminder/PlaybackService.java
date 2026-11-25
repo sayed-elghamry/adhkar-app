@@ -34,7 +34,7 @@ public class PlaybackService extends Service {
         try {
             if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
         } catch (Exception e) {
-            try { NotificationManagerCompat.from(c).notify(notifId, build(c, title, text, open, false)); } catch (SecurityException ignored) {}
+            try { NotificationManagerCompat.from(c).notify(notifId, kind == ReminderScheduler.K_ADHAN ? buildAdhan(c, title, text, true) : build(c, title, text, open, false)); } catch (SecurityException ignored) {}
             SoundPlayer.play(c, kind, force, null);
         }
     }
@@ -65,6 +65,41 @@ public class PlaybackService extends Service {
         return b.build();
     }
 
+    /** إشعار الأذان: صورة مسجد، وشاشة كاملة تظهر حتى والهاتف مقفول، وزر جرس لإيقاف الصوت. */
+    static Notification buildAdhan(Context c, String title, String text, boolean playing) {
+        ReminderScheduler.ensureChannel(c);
+        android.graphics.Bitmap pic = null;
+        try {
+            android.graphics.drawable.Drawable d = androidx.core.content.ContextCompat.getDrawable(c, R.drawable.mosque);
+            if (d != null) {
+                pic = android.graphics.Bitmap.createBitmap(720, 440, android.graphics.Bitmap.Config.ARGB_8888);
+                android.graphics.Canvas cv = new android.graphics.Canvas(pic);
+                d.setBounds(0, 0, 720, 440); d.draw(cv);
+            }
+        } catch (Exception ignored) {}
+        Intent ai = new Intent(c, AdhanActivity.class).putExtra("title", title)
+            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent screen = PendingIntent.getActivity(c, 7404, ai, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, ReminderScheduler.CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_reminder)
+            .setContentTitle("🕌 " + title)
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(screen);
+        if (pic != null) b.setLargeIcon(pic).setStyle(new NotificationCompat.BigPictureStyle().bigPicture(pic).bigLargeIcon((android.graphics.Bitmap) null).setSummaryText(text));
+        if (playing) {
+            b.setFullScreenIntent(screen, true);
+            PendingIntent stop = PendingIntent.getService(c, 7403,
+                new Intent(c, PlaybackService.class).setAction(ACTION_STOP),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            b.addAction(0, "🔕 إيقاف صوت الأذان", stop).setDeleteIntent(stop);
+        }
+        return b.build();
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || ACTION_STOP.equals(intent.getAction())) {
@@ -76,8 +111,8 @@ public class PlaybackService extends Service {
         notifId = intent.getIntExtra("id", 7401);
         String title = intent.getStringExtra("title"), text = intent.getStringExtra("text"), open = intent.getStringExtra("open");
         boolean force = intent.getBooleanExtra("force", false);
-        Notification n = build(this, title, text, open, true);
-        last = build(this, title, text, open, false);
+        Notification n = kind == ReminderScheduler.K_ADHAN ? buildAdhan(this, title, text, true) : build(this, title, text, open, true);
+        last = kind == ReminderScheduler.K_ADHAN ? buildAdhan(this, title, text, false) : build(this, title, text, open, false);
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(notifId, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
             else startForeground(notifId, n);

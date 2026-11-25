@@ -79,9 +79,17 @@
   }
 
   /** أرسل مواقيت ٦٠ يومًا لمنبّه أندرويد */
+  // الجرس في ودجت المواقيت يغيّر صوت الأذان: نقرأه أولاً حتى لا نلغيه
   function syncAlarms() {
-    var p = P(), R = ctx.R;
+    var R = ctx.R;
     if (!R || !R.setPrayerAlarms) return Promise.resolve();
+    if (!R.adhanState) return syncAlarms0();
+    return R.adhanState().then(function (r) {
+      if (r && r.changed) { ctx.S.settings = ctx.S.settings || {}; ctx.S.settings.adhan = !!r.adhan; ctx.persist(); }
+    }).catch(function () {}).then(syncAlarms0);
+  }
+  function syncAlarms0() {
+    var p = P(), R = ctx.R;
     var st = ctx.S.settings || {};
     var mOn = st.mAlarm !== false, eOn = st.eAlarm !== false, mAt = st.mAt == null ? 360 : st.mAt;
     // بدون موقع: نحسب المغرب على القاهرة حتى يعمل تنبيه أذكار المساء

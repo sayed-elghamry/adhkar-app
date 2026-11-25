@@ -151,9 +151,20 @@ public class ReminderPlugin extends Plugin {
         boolean enabled = call.getBoolean("enabled", false);
         org.json.JSONArray times = call.getArray("times", new com.getcapacitor.JSArray());
         if (call.hasOption("adhan")) PrayerScheduler.prefs(getContext()).edit().putBoolean("adhan", call.getBoolean("adhan", true)).apply();
+        PrayerWidget.refreshAll(getContext());
         PrayerScheduler.save(getContext(), enabled, times);
         JSObject r = new JSObject();
         r.put("remaining", PrayerScheduler.remaining(getContext()));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void adhanState(PluginCall call) {
+        android.content.SharedPreferences p = PrayerScheduler.prefs(getContext());
+        JSObject r = new JSObject();
+        r.put("adhan", p.getBoolean("adhan", true));
+        r.put("changed", p.getBoolean("adhanChanged", false));
+        p.edit().putBoolean("adhanChanged", false).apply();
         call.resolve(r);
     }
 

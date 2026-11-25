@@ -14,6 +14,17 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ReminderPlugin.class);
         super.onCreate(savedInstanceState);
         remember(getIntent());
+        // زر الرجوع: نسأل الواجهة أولاً (المصحف ← الفهرس ← الرئيسية)، وفي الرئيسية نخفي التطبيق بدل إغلاقه
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                android.webkit.WebView wv = getBridge() == null ? null : getBridge().getWebView();
+                if (wv == null) { moveTaskToBack(true); return; }
+                wv.evaluateJavascript("(window.__onBack&&window.__onBack())?'1':'0'", v -> {
+                    if (v == null || !v.contains("1")) moveTaskToBack(true);
+                });
+            }
+        });
     }
 
     @Override

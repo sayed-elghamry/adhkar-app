@@ -369,6 +369,14 @@ function renderNav(){
   nav.innerHTML=TABS.map(function(t){return '<button data-t="'+t.id+'" class="'+(t.id===tab?'on':'')+'"><span class="ic">'+t.i+'</span>'+t.n+'</button>'}).join('');
   Array.prototype.forEach.call(nav.querySelectorAll('button'),function(b){b.onclick=function(){go(b.getAttribute('data-t'))}});
 }
+// زر الرجوع في أندرويد: يرجع خطوة بدل إغلاق التطبيق
+window.__onBack=function(){
+  try{
+    if(tab==='quran'&&quranMod&&quranMod.back&&quranMod.back())return true;
+    if(tab!=='home'){document.body.classList.remove('reading');go('home');return true}
+  }catch(e){}
+  return false;
+};
 function go(t){if(tab==='times'&&t!=='times'&&window.Prayer)Prayer.leave();tab=t;window.scrollTo(0,0);render()}
 function pctx(){return {S:S,persist:persist,view:view,R:Reminder}}
 

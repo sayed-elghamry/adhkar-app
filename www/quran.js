@@ -702,6 +702,14 @@ export function show(c) {
   });
 }
 
+/** زر الرجوع في الهاتف: من صفحة القراءة إلى الفهرس. يرجع true إن تعامل معه. */
+export function back() {
+  const sh = document.querySelector('.sh-sheet');
+  if (sh) { sh.remove(); return true; }
+  if (mode !== 'index') { document.body.classList.remove('reading'); mode = 'index'; render(); window.scrollTo(0, 0); return true; }
+  return false;
+}
+
 /** فتح سورة مباشرة (مثل الكهف يوم الجمعة) في الطبعة المختارة. */
 export function openSurah(c, n) {
   ctx = c;

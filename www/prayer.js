@@ -57,6 +57,9 @@
     var h = d.getHours(), m = d.getMinutes();
     return AR((h % 12 || 12) + ':' + String(m).padStart(2, '0')) + ' ' + (h >= 12 ? 'م' : 'ص');
   }
+  function hijriDay(d) {
+    try { return parseInt(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric' }).format(d), 10) || 0; } catch (e) { return 0; }
+  }
   function hijri(d) {
     try { return new Intl.DateTimeFormat('ar-EG-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d); } catch (e) { return ''; }
   }
@@ -94,8 +97,25 @@
       if (mOn && mt > now) list.push({ t: mt, name: 'أذكار الصباح', kind: 'morning' });
       var et = t.maghrib.getTime() - 15 * 60000;
       if (eOn && et > now) list.push({ t: et, name: 'أذكار المساء', kind: 'evening' });
+      // صلاة الضحى: بعد الشروق بعدد دقائق يختاره المستخدم
+      var dt = t.sunrise.getTime() + (st.duhaMin == null ? 20 : st.duhaMin) * 60000;
+      if (st.duha !== false && dt > now) list.push({ t: dt, kind: 'note', id: 1, name: 'صلاة الضحى ☀', text: 'دخل وقت صلاة الضحى. «ويُجزئ من ذلك ركعتان يركعهما من الضحى» (رواه مسلم)' });
+      var dow = day.getDay();
+      // الجمعة: سورة الكهف والصلاة على النبي
+      var ft = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0).getTime();
+      if (st.friday !== false && dow === 5 && ft > now) list.push({ t: ft, kind: 'note', id: 2, name: 'يوم الجمعة 🕌', text: 'لا تنسَ قراءة سورة الكهف، وأكثِر من الصلاة على النبي ﷺ', open: 'kahf' });
+      // الصيام: ليلة الاثنين والخميس، وليلة الأيام البيض (١٣ و١٤ و١٥ هجري)
+      if (st.fast !== false) {
+        var tom = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 12);
+        var hd = hijriDay(tom), why = [];
+        if (tom.getDay() === 1) why.push('صيام يوم الاثنين');
+        if (tom.getDay() === 4) why.push('صيام يوم الخميس');
+        if (hd >= 13 && hd <= 15) why.push('صيام الأيام البيض (' + AR(hd) + ' من الشهر الهجري)');
+        var nt = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 21, 0).getTime();
+        if (why.length && nt > now) list.push({ t: nt, kind: 'note', id: 3, name: 'تذكير بالصيام غدًا', text: 'غدًا: ' + why.join('، و') + '. لا تنسَ نية الصيام والسحور، فإن في السحور بركة.' });
+      }
     }
-    return R.setPrayerAlarms({ enabled: list.length > 0, times: list }).catch(function () {});
+    return R.setPrayerAlarms({ enabled: list.length > 0, times: list, adhan: st.adhan !== false }).catch(function () {});
   }
 
   function locate() {
@@ -232,6 +252,7 @@
     show: function (c) { ctx = c; render(); },
     init: function (c) { ctx = c; syncAlarms(); },
     sync: function (c) { ctx = c; return syncAlarms(); },
+    hijri: function () { return hijri(new Date()); },
     eveningAt: function (c) { ctx = c; var p = P(); var loc = p.lat == null ? { lat: 30.0444, lng: 31.2357, method: p.method, madhab: p.madhab } : p; var now = new Date(); var t = timesFor(loc, now); var e = new Date(t.maghrib.getTime() - 15 * 60000); if (e < now) { var tm = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12); e = new Date(timesFor(loc, tm).maghrib.getTime() - 15 * 60000); } return fmt(e) + (p.lat == null ? ' (حسب توقيت القاهرة، اختر مدينتك من «المواقيت»)' : ''); },   // عند بدء التطبيق: جدّد المواقيت للمنبّه
     next: function (c) { ctx = c; var p = P(); var n = nextPrayer(p); return n ? { name: n.name, time: fmt(n.at) } : null; },
     leave: function () { stopCompass(); clearInterval(tick); }

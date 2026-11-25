@@ -55,6 +55,12 @@
                 android:resource="@xml/adhkar_widget_info" />
         </receiver>
 
+        <!-- تشغيل الأذان ونغمتي الصباح والمساء -->
+        <service
+            android:name=".reminder.PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <!-- الفقاعة العائمة -->
         <service
             android:name=".reminder.BubbleService"
@@ -94,5 +100,6 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

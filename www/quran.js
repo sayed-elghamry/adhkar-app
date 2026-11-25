@@ -30,7 +30,8 @@ const CSS = `
 .q-btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:8px 12px;font:500 14px 'Tajawal';cursor:pointer;min-width:44px}
 .q-btn.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 .q-page{background:#fffbef;color:#1b1b1b;border:1px solid #e6d9b5;border-radius:10px;padding:14px 10px 10px;margin:6px 0;box-shadow:0 2px 10px rgba(0,0,0,.06);touch-action:pan-y}
-@media (prefers-color-scheme:dark){.q-page{background:#16130c;color:#efe7d2;border-color:#3a311d}}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .q-page{background:#16130c;color:#efe7d2;border-color:#3a311d}}
+:root[data-theme=dark] .q-page{background:#16130c;color:#efe7d2;border-color:#3a311d}
 .q-line{font-family:'KFGQPC HAFS Uthmanic Script',serif;font-size:var(--qfs,22px);line-height:1.95;text-align:justify;text-align-last:justify;white-space:nowrap;direction:rtl}
 .q-line.c{text-align:center;text-align-last:center}
 .q-sura{margin:8px 0 4px;border:2px solid var(--gold);border-radius:10px;padding:4px;text-align:center;font:700 17px 'Amiri',serif;color:var(--green);background:linear-gradient(90deg,transparent,rgba(184,137,43,.12),transparent)}
@@ -68,6 +69,21 @@ let ctx = null;
 let mode = 'index';      // index | page
 let idxTab = 'surah';    // surah | juz | search | marks
 let lastQuery = '';
+// الورد اليومي والختمة: تُحسب الصفحة مقروءة إذا بقيت معروضة ٨ ثوانٍ
+let readTimer = null;
+function trackRead(key) {
+  clearTimeout(readTimer);
+  readTimer = setTimeout(() => {
+    const S = ctx.S;
+    const w = S.wird = S.wird || { target: 20, days: {}, kh: { pages: {}, n: 0 } };
+    const d0 = new Date(), d = d0.getFullYear() + '-' + String(d0.getMonth() + 1).padStart(2, '0') + '-' + String(d0.getDate()).padStart(2, '0');
+    w.days[d] = w.days[d] || [];
+    if (w.days[d].indexOf(key) < 0) w.days[d].push(key);
+    w.kh.pages[key] = 1;
+    const ks = Object.keys(w.days).sort(); while (ks.length > 30) delete w.days[ks.shift()];
+    ctx.persist();
+  }, 8000);
+}
 function Q() {
   ctx.S.quran = ctx.S.quran || { page: 1, marks: [], last: 0 };
   return ctx.S.quran;
@@ -113,7 +129,7 @@ function surahOfPage(m, n) {
 function renderPage(m) {
   const q = Q();
   const n = Math.max(1, Math.min(m.pageCount, q.page | 0 || 1));
-  q.page = n; q.last = Date.now(); ctx.persist();
+  q.page = n; q.last = Date.now(); ctx.persist(); trackRead('m' + n);
   const marked = q.marks.indexOf(n) >= 0;
   const juz = m.page(n).juz;
   ctx.view.innerHTML =
@@ -300,12 +316,14 @@ function renderShamIndex(m) {
 }
 const shLoaded = {};
 let shZoom = 1;
+const shCrop = {};
+let shLastCrop = null;
 function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
 function renderSham() {
   const sh = SH();
   if (!sh.leaf) sh.leaf = 1;
   const leaf = Math.max(0, Math.min(SH_LEAVES - 1, sh.leaf));
-  sh.leaf = leaf; ctx.persist();
+  sh.leaf = leaf; ctx.persist(); trackRead('s' + leaf);
   const pageNo = shPrinted(leaf);
   const surahName = M ? M.surahs[shSurahOf(leaf) - 1].nameAr : '';
   const marked = sh.marks.indexOf(leaf) >= 0;
@@ -317,8 +335,10 @@ function renderSham() {
       '<div class="ttl">' + esc(surahName) + '<small>الشمرلي · الصفحة ' + AR(pageNo) + ' · الجزء ' + AR(shJuzOf(leaf)) + '</small></div>' +
       '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
     '</div></div>' +
-    '<div class="q-page" id="qPage" style="position:relative;padding:4px;min-height:60vh;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y">' +
-      '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block;border-radius:6px;transform-origin:center center;will-change:transform" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
+    '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:6px -12px;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y">' +
+      '<div id="shBox" style="position:relative;width:100%;overflow:hidden;transform-origin:center center;will-change:transform">' +
+      '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
+      '</div>' +
       '<div id="shMsg" class="sub" style="position:absolute">جارٍ تحميل الصفحة…</div>' +
     '</div>' +
     '<div class="q-bar" style="margin-top:6px">' +
@@ -330,8 +350,51 @@ function renderSham() {
     '</div>' +
     '<div class="sub" style="text-align:center;margin-top:4px">للتكبير: بإصبعين، أو المس الصفحة مرتين، أو زر ＋</div>';
   const img = document.getElementById('shImg'), msg = document.getElementById('shMsg');
+  const box = document.getElementById('shBox');
+  // قص الهوامش البيضاء حتى تملأ الصفحة عرض الشاشة مثل مصحف المدينة
+  const applyCrop = (cr) => {
+    if (!cr || !img.naturalWidth) return;
+    const W = box.clientWidth || 360;
+    const dw = W / cr.w, dh = dw * img.naturalHeight / img.naturalWidth;   // مقاس الصورة كاملة بعد التكبير
+    box.style.height = Math.round(cr.h * dh) + 'px';
+    img.style.position = 'absolute';
+    img.style.width = Math.round(dw) + 'px';
+    img.style.maxWidth = 'none';
+    img.style.left = Math.round(-cr.x * dw) + 'px';
+    img.style.top = Math.round(-cr.y * dh) + 'px';
+  };
+  const detectCrop = (src) => {
+    if (shCrop[leaf]) return;
+    const t = new Image();
+    t.crossOrigin = 'anonymous';
+    t.onload = () => {
+      try {
+        const cw = 240, ch = Math.round(cw * t.naturalHeight / t.naturalWidth);
+        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+        const g = cv.getContext('2d'); g.drawImage(t, 0, 0, cw, ch);
+        const d = g.getImageData(0, 0, cw, ch).data;
+        const lum = (i) => (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10;
+        let bg = 0; [0, cw - 1, (ch - 1) * cw, ch * cw - 1].forEach((p) => { bg += lum(p * 4); }); bg /= 4;
+        const ink = (x, y) => Math.abs(lum((y * cw + x) * 4) - bg) > 45;
+        const rowHas = (y) => { let n = 0; for (let x = 0; x < cw; x++) if (ink(x, y)) n++; return n > cw * 0.02; };
+        const colHas = (x) => { let n = 0; for (let y = 0; y < ch; y++) if (ink(x, y)) n++; return n > ch * 0.02; };
+        let y0 = 0, y1 = ch - 1, x0 = 0, x1 = cw - 1;
+        while (y0 < ch / 3 && !rowHas(y0)) y0++;
+        while (y1 > ch * 2 / 3 && !rowHas(y1)) y1--;
+        while (x0 < cw / 3 && !colHas(x0)) x0++;
+        while (x1 > cw * 2 / 3 && !colHas(x1)) x1--;
+        const pad = 0.012;
+        const cr = { x: Math.max(0, x0 / cw - pad), y: Math.max(0, y0 / ch - pad) };
+        cr.w = Math.min(1, x1 / cw + pad) - cr.x; cr.h = Math.min(1, y1 / ch + pad) - cr.y;
+        if (cr.w > 0.5 && cr.h > 0.5) { shCrop[leaf] = cr; shLastCrop = cr; if (SH().leaf === leaf) applyCrop(cr); }
+      } catch (e) { /* الصورة لا تسمح بالقراءة: نعرضها كما هي */ }
+    };
+    t.src = src;
+  };
   img.onload = () => {
     if (msg.parentNode) msg.remove();
+    applyCrop(shCrop[leaf] || shLastCrop);
+    detectCrop(img.src);
     // بعد ظهور النسخة السريعة، حمّل النسخة الواضحة واستبدلها
     if (img.src.indexOf('_w' + wLow) > 0) {
       const hi = new Image();
@@ -374,11 +437,11 @@ function renderSham() {
   const pg = document.getElementById('qPage');
   // ---- التكبير والتحريك ----
   let tx = 0, ty = 0, hiReq = false;
-  const lim = () => ({ x: (shZoom - 1) * img.clientWidth / 2, y: (shZoom - 1) * img.clientHeight / 2 });
+  const lim = () => ({ x: (shZoom - 1) * box.clientWidth / 2, y: (shZoom - 1) * box.clientHeight / 2 });
   const apply = () => {
     const L = lim();
     tx = Math.max(-L.x, Math.min(L.x, tx)); ty = Math.max(-L.y, Math.min(L.y, ty));
-    img.style.transform = shZoom > 1 ? 'translate(' + tx + 'px,' + ty + 'px) scale(' + shZoom + ')' : '';
+    box.style.transform = shZoom > 1 ? 'translate(' + tx + 'px,' + ty + 'px) scale(' + shZoom + ')' : '';
     pg.style.touchAction = shZoom > 1 ? 'none' : 'pan-y';
     // عند التكبير حمّل النسخة الأصلية الأوضح (إن توفر الإنترنت)
     if (shZoom > 1.4 && !hiReq) {
@@ -439,5 +502,17 @@ export function show(c) {
     if (document.fonts && document.fonts.load) return document.fonts.load('22px "KFGQPC HAFS Uthmanic Script"').catch(() => {});
   }).then(render).catch((e) => {
     ctx.view.innerHTML = '<div class="card sub">تعذّر تحميل المصحف: ' + esc(e && e.message || e) + '</div>';
+  });
+}
+
+/** فتح سورة مباشرة (مثل الكهف يوم الجمعة) في الطبعة المختارة. */
+export function openSurah(c, n) {
+  ctx = c;
+  ensureCss();
+  return mushaf().then(() => {
+    if (Q().ed === 'sham') { SH().leaf = SH_SURA[n - 1]; mode = 'sham'; }
+    else { Q().page = M.surahs[n - 1].page.number; mode = 'page'; }
+    ctx.persist();
+    return show(c);
   });
 }

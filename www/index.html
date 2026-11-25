@@ -20,8 +20,10 @@
   --green:#1f6b4f; --green-d:#14503a; --gold:#b8892b; --line:#e4dfcf; --ok:#2e8b57; --warn:#b5522b;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#0f1713; --card:#17221c; --ink:#e9efe9; --muted:#97a69c; --green:#3fae84; --green-d:#2f8c68; --gold:#d9ac4e; --line:#26352c; --ok:#4cc58e; --warn:#e08a5f}
+  :root:not([data-theme=light]){--bg:#0f1713; --card:#17221c; --ink:#e9efe9; --muted:#97a69c; --green:#3fae84; --green-d:#2f8c68; --gold:#d9ac4e; --line:#26352c; --ok:#4cc58e; --warn:#e08a5f}
 }
+:root[data-theme=dark]{--bg:#0f1713; --card:#17221c; --ink:#e9efe9; --muted:#97a69c; --green:#3fae84; --green-d:#2f8c68; --gold:#d9ac4e; --line:#26352c; --ok:#4cc58e; --warn:#e08a5f;color-scheme:dark}
+:root[data-theme=light]{color-scheme:light}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Tajawal',system-ui,sans-serif}
 body{min-height:100vh;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 84px);-webkit-user-select:none;user-select:none}
@@ -49,7 +51,7 @@ button.pri{border:none;background:var(--green);color:#fff;border-radius:12px;pad
 .ayah{font-family:'Amiri',serif;font-size:21px;line-height:2;text-align:center;margin:6px 0}
 .sub{color:var(--muted);font-size:13px}
 .z{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--line);background:var(--card);border-radius:16px;margin:10px 0;cursor:pointer}
-.z .t{flex:1;font-family:'Amiri',serif;font-size:20px;line-height:1.95}
+.z .t{flex:1;font-family:'Amiri',serif;font-size:calc(20px * var(--fs,1));line-height:1.95}
 .z .meta{font-size:12px;color:var(--muted);font-family:'Tajawal'}
 .z .badge{min-width:48px;height:48px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font:700 18px 'Tajawal'}
 .z.done{opacity:.55}
@@ -246,6 +248,14 @@ var SECTIONS=[
 ];
 function defaultSection(){var h=new Date().getHours();return h>=4&&h<12?'morning':h>=14&&h<21?'evening':h>=21||h<4?'sleep':'various'}
 
+function applyLook(){
+  var st=(S&&S.settings)||{};
+  try{
+    var r=document.documentElement;
+    if(st.theme==='dark'||st.theme==='light')r.setAttribute('data-theme',st.theme);else r.removeAttribute('data-theme');
+    r.style.setProperty('--fs',String(st.fs||1));
+  }catch(e){}
+}
 /* ---------- الحالة ---------- */
 var S=load('azkar.v1',null)||{};
 S.settings=S.settings||{hourly:true,sound:true,notif:false,vibrate:true,from:5,to:23};
@@ -255,6 +265,7 @@ S.sel=S.sel||'salawat';
 S.targets=S.targets||{};
 S.lastHour=S.lastHour||'';
 var tab='home';
+applyLook();
 function persist(){save('azkar.v1',S)}
 function todayCounts(){var d=today();S.counts[d]=S.counts[d]||{};return S.counts[d]}
 function todayList(id){var d=today();S.lists[d]=S.lists[d]||{};S.lists[d][id]=S.lists[d][id]||{};return S.lists[d][id]}
@@ -436,13 +447,21 @@ function renderHome(){
   var cur=COUNTER_TYPES.filter(function(x){return x.id===S.sel})[0]||COUNTER_TYPES[0];
   var target=S.targets[cur.id]||cur.target;
   var n=todayCounts()[cur.id]||0;
+  var hj=window.Prayer&&window.adhan&&Prayer.hijri?Prayer.hijri():'';
+  var w=S.wird||{target:20,days:{},kh:{pages:{}}},wd=(w.days[today()]||[]).length,ed=(S.quran&&S.quran.ed==='sham')?'s':'m',tot=ed==='s'?522:604;
+  var kd=0;for(var kk in w.kh.pages)if(kk.charAt(0)===ed)kd++;
   view.innerHTML=
+   (hj?'<div style="text-align:center;color:var(--muted);margin:-4px 0 8px">'+esc(hj)+'</div>':'')+
    (UPD?'<div class="card banner" style="background:var(--green)"><div class="row"><span>نسخة جديدة من التطبيق متاحة ('+esc(UPD.name)+')</span><button id="getUpd">تحميل</button></div></div>':'')+
    (NATIVE&&S.settings.hourly&&!setupOk()?'<div class="card banner"><div class="row"><span>لضمان وصول التذكير والهاتف مقفل، أكمل الإعداد (دقيقة واحدة).</span><button id="fixSetup">أكمل الإعداد</button></div></div>':'')+
    '<div class="card"><div class="chips" id="chips">'+COUNTER_TYPES.map(function(t){return '<button class="chip '+(t.id===cur.id?'on':'')+'" data-id="'+t.id+'">'+esc(t.s)+'</button>'}).join('')+'</div>'+
    '<div class="big">'+ring(n/target)+'<button class="tap" id="tap" aria-label="عدّ"><span class="n" id="cnt">'+ar(n)+'</span><span class="lbl">'+esc(cur.t)+'</span></button></div>'+
    '<div class="row"><span class="sub">الهدف اليومي: <b>'+ar(target)+'</b></span><span><button class="ghost" id="tgt">تغيير الهدف</button> <button class="ghost" id="rst">تصفير</button></span></div></div>'+
    '<div class="card stats"><div><b>'+ar(totalToday())+'</b><span>إجمالي اليوم</span></div><div><b>'+ar(grand(cur.id))+'</b><span>إجمالي «'+esc(cur.s)+'»</span></div><div><b>'+ar(streak())+'</b><span>أيام متتالية</span></div></div>'+
+   '<div class="card"><div class="row"><b>📖 وِردك اليوم: '+ar(Math.min(wd,w.target))+' من '+ar(w.target)+' صفحة</b><button class="ghost" id="wTgt">تغيير</button></div>'+
+    '<div class="prog"><i style="width:'+Math.min(100,Math.round(wd/w.target*100))+'%"></i></div>'+
+    '<div class="sub" style="margin:6px 0">الختمة في مصحف '+(ed==='s'?'الشمرلي':'المدينة')+': قرأت '+ar(kd)+' من '+ar(tot)+' صفحة ('+ar(Math.round(kd/tot*100))+'٪)</div>'+
+    '<div class="row" style="justify-content:flex-start;gap:8px"><button class="ghost" id="wRead">متابعة القراءة</button><button class="ghost" id="wNew">ختمة جديدة</button></div></div>'+
    '<div class="card"><div class="ayah">﴿ إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ يَا أَيُّهَا الَّذِينَ آمَنُوا صَلُّوا عَلَيْهِ وَسَلِّمُوا تَسْلِيمًا ﴾</div></div>'+
    (function(){var np=window.Prayer&&window.adhan?Prayer.next(pctx()):null;return '<div class="card"><div class="row"><span>'+(np?'🕌 الصلاة القادمة: <b>'+esc(np.name)+'</b> '+esc(np.time):'🕌 مواقيت الصلاة واتجاه القبلة')+'</span><button class="ghost" id="goTimes">'+(np?'المواقيت والقبلة':'اختر مدينتك')+'</button></div></div>'})()+
    '<div class="card"><div class="row"><span class="sub" id="nextTxt">'+esc(nextReminderText())+'</span><button class="ghost" id="testRem">جرّب التنبيه</button></div></div>';
@@ -463,6 +482,10 @@ function renderHome(){
   };
   $('testRem').onclick=testReminder;
   $('goTimes').onclick=function(){go('times')};
+  function W(){S.wird=S.wird||{target:20,days:{},kh:{pages:{}}};return S.wird}
+  $('wTgt').onclick=function(){var o=[5,10,20,40],x=W(),i=o.indexOf(x.target);x.target=o[(i+1)%o.length];persist();renderHome()};
+  $('wRead').onclick=function(){go('quran')};
+  $('wNew').onclick=function(){if(confirm('بدء ختمة جديدة من الصفر؟')){W().kh={pages:{},start:today()};persist();renderHome()}};
 }
 function renderHomeFast(cur,target,v){
   var el=$('cnt');if(!el){renderHome();return}
@@ -551,6 +574,19 @@ function renderSettings(){
     '<div class="sw"><span>تنبيه أذكار المساء<small class="sub" style="display:block">قبل أذان المغرب بربع ساعة، اليوم: '+esc(window.Prayer&&window.adhan?Prayer.eveningAt(pctx()):'')+'</small></span><input type="checkbox" id="sEve" '+(s.eAlarm!==false?'checked':'')+'></div>'+
     '<div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start"><button class="ghost" id="testMorn">جرّب نغمة الصباح</button><button class="ghost" id="testEve">جرّب نغمة المساء</button></div>'+
    '</div>';
+  function mOpts(sel,a,b,st){var o='';for(var m=a;m<=b;m+=st)o+='<option value="'+m+'"'+(m===sel?' selected':'')+'>'+ar(m)+' دقيقة</option>';return o}
+  html+='<div class="card"><b style="font-size:18px">الأذان والتذكيرات</b>'+
+    '<div class="sw"><span>صوت الأذان عند كل صلاة<small class="sub" style="display:block">بصوت الشيخ نصر الدين طوبار، للصلوات المفعّلة في «المواقيت»</small></span><input type="checkbox" id="sAdhan" '+(s.adhan!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>تذكير صلاة الضحى</span><input type="checkbox" id="sDuha" '+(s.duha!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>بعد الشروق بـ</span><select id="sDuhaMin">'+mOpts(s.duhaMin==null?20:s.duhaMin,15,60,5)+'</select></div>'+
+    '<div class="sw"><span>تذكير الجمعة<small class="sub" style="display:block">سورة الكهف والصلاة على النبي ﷺ، الساعة ٩ صباحًا</small></span><input type="checkbox" id="sFri" '+(s.friday!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>تذكير الصيام<small class="sub" style="display:block">ليلة الاثنين والخميس والأيام البيض، الساعة ٩ مساءً</small></span><input type="checkbox" id="sFast" '+(s.fast!==false?'checked':'')+'></div>'+
+    '<div class="row" style="justify-content:flex-start"><button class="ghost" id="testAdhan">جرّب الأذان</button></div>'+
+   '</div>'+
+   '<div class="card"><b style="font-size:18px">المظهر</b>'+
+    '<div class="sw"><span>الوضع</span><select id="sTheme"><option value="auto"'+(!s.theme||s.theme==='auto'?' selected':'')+'>تلقائي حسب الهاتف</option><option value="light"'+(s.theme==='light'?' selected':'')+'>نهاري</option><option value="dark"'+(s.theme==='dark'?' selected':'')+'>ليلي</option></select></div>'+
+    '<div class="sw"><span>حجم خط الأذكار</span><select id="sFs">'+[[0.9,'صغير'],[1,'عادي'],[1.15,'كبير'],[1.3,'كبير جدًا']].map(function(x){return '<option value="'+x[0]+'"'+((s.fs||1)===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></div>'+
+   '</div>';
   if(NATIVE){
     var n=NS||{};
     html+=
@@ -581,7 +617,12 @@ function renderSettings(){
   if($('sLoud'))bind('sLoud','loud',function(){syncNative()});
   bind('sHalf','half',function(){syncNative().then(rerenderSettings)});
   function syncTimes(){if(window.Prayer&&window.adhan)Prayer.sync(pctx())}
-  bind('sMorn','mAlarm',syncTimes);bind('sEve','eAlarm',syncTimes);
+  bind('sMorn','mAlarm',syncTimes);
+  bind('sAdhan','adhan',syncTimes);bind('sDuha','duha',syncTimes);bind('sFri','friday',syncTimes);bind('sFast','fast',syncTimes);
+  $('sDuhaMin').onchange=function(){s.duhaMin=+this.value;persist();syncTimes()};
+  $('sTheme').onchange=function(){s.theme=this.value;persist();applyLook()};
+  $('sFs').onchange=function(){s.fs=+this.value;persist();applyLook()};
+  $('testAdhan').onclick=function(){if(Reminder){Reminder.test({kind:5}).catch(function(){})}else{playSalawat('adhan.mp3')}};bind('sEve','eAlarm',syncTimes);
   $('sMornAt').onchange=function(){s.mAt=+this.value;persist();syncTimes()};
   function tsnd(k,f){return function(){unlockAudio();if(Reminder){Reminder.test({kind:k}).catch(function(){})}else{playSalawat(f)}}}
   $('testMorn').onclick=tsnd(3,'morning.mp3');$('testEve').onclick=tsnd(4,'evening.mp3');
@@ -644,7 +685,7 @@ function checkUpdate(force){
 
 function checkOpen(){
   if(!Reminder||!Reminder.consumeOpen)return;
-  Reminder.consumeOpen().then(function(r){if(r&&r.section){if(tab==='times'&&window.Prayer)Prayer.leave();tab='adhkar';sec=r.section;window.scrollTo(0,0);render()}}).catch(function(){});
+  Reminder.consumeOpen().then(function(r){if(r&&r.section==='kahf'){if(tab==='times'&&window.Prayer)Prayer.leave();tab='quran';render();var c={S:S,persist:persist,view:view,R:Reminder};import('./quran.js').then(function(m){quranMod=m;m.openSurah(c,18)}).catch(function(){});return}if(r&&r.section){if(tab==='times'&&window.Prayer)Prayer.leave();tab='adhkar';sec=r.section;window.scrollTo(0,0);render()}}).catch(function(){});
 }
 
 /* ---------- البدء ---------- */
@@ -661,6 +702,10 @@ if(NATIVE){
     if(NS&&!NS.notifications&&!S.askedNotif){
       S.askedNotif=true;persist();
       Reminder.requestNotifications().then(function(r){NS=r;render()}).catch(function(){});
+    }else if(NS&&NS.notifications&&!NS.ignoringBattery&&!S.askedBatt){
+      // مرة واحدة: اطلب استثناء التطبيق من توفير البطارية حتى تصل المنبّهات في وقتها
+      S.askedBatt=true;persist();
+      Reminder.requestIgnoreBattery().catch(function(){});
     }
   });
 }

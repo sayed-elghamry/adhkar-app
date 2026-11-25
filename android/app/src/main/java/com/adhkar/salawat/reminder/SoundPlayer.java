@@ -42,7 +42,8 @@ public final class SoundPlayer {
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
         final PowerManager.WakeLock wl = pm == null ? null
             : pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "adhkar:salawat");
-        if (wl != null) wl.acquire(45_000L);
+        final long maxMs = kind == ReminderScheduler.K_ADHAN ? 240_000L : 45_000L;
+        if (wl != null) wl.acquire(maxMs + 5_000L);
         final Runnable finish = () -> {
             if (wl != null && wl.isHeld()) wl.release();
             done.run();
@@ -56,7 +57,8 @@ public final class SoundPlayer {
             int res = kind == ReminderScheduler.K_ISTIGHFAR ? R.raw.istighfar
                 : kind == ReminderScheduler.K_HAWQALA ? R.raw.hawqala
                 : kind == ReminderScheduler.K_MORNING ? R.raw.morning
-                : kind == ReminderScheduler.K_EVENING ? R.raw.evening : R.raw.salawat;
+                : kind == ReminderScheduler.K_EVENING ? R.raw.evening
+                : kind == ReminderScheduler.K_ADHAN ? R.raw.adhan : R.raw.salawat;
             AssetFileDescriptor afd = c.getResources().openRawResourceFd(res);
             mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
             afd.close();
@@ -68,7 +70,7 @@ public final class SoundPlayer {
             // أمان: أنهِ بعد ٤٠ ثانية مهما حدث (نغمتا الصباح والمساء ~٣٠ ثانية)
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (wl != null && wl.isHeld()) { stop(); finish.run(); }
-            }, 40_000L);
+            }, maxMs);
         } catch (Exception e) {
             finish.run();
         }

@@ -56,7 +56,7 @@ public final class ReminderScheduler {
     };
 
     /** نوع التذكير: صلاة على النبي (رأس الساعة)، استغفار (:٢٠ و:٢١)، حوقلة (:٤٠ و:٤١). */
-    public static final int K_SALAWAT = 0, K_ISTIGHFAR = 1, K_HAWQALA = 2, K_MORNING = 3, K_EVENING = 4;
+    public static final int K_SALAWAT = 0, K_ISTIGHFAR = 1, K_HAWQALA = 2, K_MORNING = 3, K_EVENING = 4, K_ADHAN = 5;
     /** دقائق التذكير داخل الساعة؛ كل ذكر من الاثنين يتكرر مرتين خلال دقيقتين. */
     private static final int[] THIRD_MINUTES = {0, 1, 20, 21, 40, 41};
     private static final int[] HOUR_MINUTES = {0, 1};

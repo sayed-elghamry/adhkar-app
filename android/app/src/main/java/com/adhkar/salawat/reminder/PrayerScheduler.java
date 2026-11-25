@@ -105,16 +105,30 @@ public final class PrayerScheduler {
     static void showAdhkar(Context c, boolean morning, Runnable onDone) { showAdhkar(c, morning, false, onDone); }
 
     static void showAdhkar(Context c, boolean morning, boolean force, Runnable onDone) {
-        ReminderScheduler.ensureChannel(c);
-        Intent open = new Intent(c, MainActivity.class)
-            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra(MainActivity.EXTRA_OPEN, morning ? "morning" : "evening");
-        PendingIntent content = PendingIntent.getActivity(c, morning ? 3 : 4, open,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        String title = morning ? "أذكار الصباح ☀" : "أذكار المساء ☾";
-        String text = morning ? "أصبحنا وأصبح الملك لله، المس هنا لقراءة أذكار الصباح"
-                              : "أمسينا وأمسى الملك لله، المس هنا لقراءة أذكار المساء";
-        NotificationCompat.Builder b = new NotificationCompat.Builder(c, ReminderScheduler.CHANNEL_ID)
+        PlaybackService.start(c, morning ? ReminderScheduler.K_MORNING : ReminderScheduler.K_EVENING, morning ? 7201 : 7202,
+            morning ? "أذكار الصباح ☀" : "أذكار المساء ☾",
+            morning ? "أصبحنا وأصبح الملك لله، المس هنا لقراءة أذكار الصباح" : "أمسينا وأمسى الملك لله، المس هنا لقراءة أذكار المساء",
+            morning ? "morning" : "evening", force);
+        if (onDone != null) onDone.run();
+    }
+
+    static final String CH_GENERAL = "general_reminders_v1";
+
+    /** تذكير عام (الضحى، الجمعة، الصيام) بصوت الإشعار الافتراضي. */
+    static void showNote(Context c, int id, String title, String text, String open) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm = c.getSystemService(NotificationManager.class);
+            if (nm != null && nm.getNotificationChannel(CH_GENERAL) == null) {
+                NotificationChannel ch = new NotificationChannel(CH_GENERAL, "تذكيرات الضحى والجمعة والصيام", NotificationManager.IMPORTANCE_HIGH);
+                ch.enableVibration(true);
+                ch.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+                nm.createNotificationChannel(ch);
+            }
+        }
+        Intent oi = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (open != null && !open.isEmpty()) oi.putExtra(MainActivity.EXTRA_OPEN, open);
+        PendingIntent content = PendingIntent.getActivity(c, 7500 + (id & 0xff), oi, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder b = new NotificationCompat.Builder(c, CH_GENERAL)
             .setSmallIcon(R.drawable.ic_stat_reminder)
             .setContentTitle(title)
             .setContentText(text)
@@ -124,11 +138,14 @@ public final class PrayerScheduler {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setContentIntent(content);
-        try { NotificationManagerCompat.from(c).notify(morning ? 7201 : 7202, b.build()); } catch (SecurityException ignored) {}
-        SoundPlayer.play(c, morning ? ReminderScheduler.K_MORNING : ReminderScheduler.K_EVENING, force, onDone);
+        try { NotificationManagerCompat.from(c).notify(id, b.build()); } catch (SecurityException ignored) {}
     }
 
     static void show(Context c, String name) {
+        if (prefs(c).getBoolean("adhan", true)) {
+            PlaybackService.start(c, ReminderScheduler.K_ADHAN, NOTIF, "حان الآن موعد صلاة " + name, "حيّ على الصلاة، حيّ على الفلاح", "", false);
+            return;
+        }
         ensureChannel(c);
         PendingIntent content = PendingIntent.getActivity(c, 1, new Intent(c, MainActivity.class)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP),
@@ -160,6 +177,8 @@ public final class PrayerScheduler {
                     if ("morning".equals(kind) || "evening".equals(kind)) {
                         async = true;
                         showAdhkar(c, "morning".equals(kind), pr::finish);
+                    } else if ("note".equals(kind)) {
+                        showNote(c, 7500 + p.optInt("id", 0), p.optString("name", ""), p.optString("text", ""), p.optString("open", ""));
                     } else {
                         show(c, p.optString("name", ""));
                     }

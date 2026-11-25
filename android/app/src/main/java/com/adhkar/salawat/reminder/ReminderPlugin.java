@@ -55,7 +55,9 @@ public class ReminderPlugin extends Plugin {
     @PluginMethod
     public void test(PluginCall call) {
         int k = call.getInt("kind", 0);
-        if (k == ReminderScheduler.K_MORNING || k == ReminderScheduler.K_EVENING)
+        if (k == ReminderScheduler.K_ADHAN)
+            PlaybackService.start(getContext(), k, 7102, "تجربة الأذان", "بصوت الشيخ نصر الدين طوبار", "", true);
+        else if (k == ReminderScheduler.K_MORNING || k == ReminderScheduler.K_EVENING)
             PrayerScheduler.showAdhkar(getContext(), k == ReminderScheduler.K_MORNING, true, null);
         else ReminderScheduler.showNow(getContext(), k, true, null);
         call.resolve(status());
@@ -147,6 +149,7 @@ public class ReminderPlugin extends Plugin {
     public void setPrayerAlarms(PluginCall call) {
         boolean enabled = call.getBoolean("enabled", false);
         org.json.JSONArray times = call.getArray("times", new com.getcapacitor.JSArray());
+        if (call.hasOption("adhan")) PrayerScheduler.prefs(getContext()).edit().putBoolean("adhan", call.getBoolean("adhan", true)).apply();
         PrayerScheduler.save(getContext(), enabled, times);
         JSObject r = new JSObject();
         r.put("remaining", PrayerScheduler.remaining(getContext()));

@@ -78,6 +78,7 @@ body.reading header,body.reading nav{display:none}
 .th .pv{padding:16px 10px;text-align:center;font:400 24px 'Amiri',serif}
 .th .ft{display:flex;align-items:center;gap:8px;padding:10px 12px}
 .th .ft div{flex:1}.th .ft b{display:block;font:700 15px 'Tajawal'}.th .ft small{color:var(--muted);font-size:12px}
+.q-page.dk .q-sura{color:inherit;border-color:#8a7440}.q-page.dk .q-foot{color:inherit;opacity:.7}
 .th .ft button{border:0;border-radius:10px;padding:8px 12px;font:600 13px 'Tajawal';background:var(--green);color:#fff}
 .th.on .ft button{background:transparent;color:var(--ok);font-weight:700}
 `;
@@ -157,17 +158,19 @@ function renderPage(m) {
   const q = Q();
   const n = Math.max(1, Math.min(m.pageCount, q.page | 0 || 1));
   q.page = n; q.last = Date.now(); ctx.persist(); trackRead('m' + n);
-  const marked = q.marks.indexOf(n) >= 0;
+  const bmi = BM('madina').findIndex((b) => b.leaf === n);
+  const th = shTheme(), dk = th[0] === 'dark' || th[0] === 'amoled';
   const juz = m.page(n).juz;
   ctx.view.innerHTML =
     '<div class="q-top"><div class="q-bar">' +
       '<button class="q-btn" id="qBack">☰</button>' +
       '<div class="ttl">' + esc(surahOfPage(m, n)) + '<small>الصفحة ' + AR(n) + ' · الجزء ' + AR(juz ? juz.number : '') + '</small></div>' +
-      '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark" aria-label="علامة">🔖</button>' +
+      '<button class="q-btn" id="qMark" aria-label="علامة"' + (bmi >= 0 ? ' style="background:' + BM_DEF[bmi][1] + ';color:#fff;border-color:' + BM_DEF[bmi][1] + '"' : '') + '>🔖</button>' +
     '</div></div>' +
-    '<div class="q-page" id="qPage">' + pageHtml(m, n) + '</div>' +
+    '<div class="q-page' + (dk ? ' dk' : '') + '" id="qPage" style="background:' + th[3] + ';color:' + th[4] + (th[0] === 'orig' ? '' : ';border-color:' + th[3]) + (th[0] === 'bright' ? ';font-weight:600' : '') + '">' + pageHtml(m, n) + '</div>' +
     '<div class="q-bar" style="margin-top:6px">' +
       '<button class="q-btn" id="qNext">→ التالية</button>' +
+      '<button class="q-btn" id="qLook">🎨</button>' +
       '<button class="q-btn" id="qGo">انتقال</button>' +
       '<button class="q-btn" id="qPrev">السابقة ←</button>' +
     '</div>';
@@ -179,9 +182,12 @@ function renderPage(m) {
   document.getElementById('qPrev').onclick = () => go(-1);
   document.getElementById('qBack').onclick = () => { mode = 'index'; render(); };
   document.getElementById('qMark').onclick = () => {
-    const i = q.marks.indexOf(n);
-    if (i >= 0) q.marks.splice(i, 1); else q.marks.unshift(n);
-    ctx.persist(); renderPage(m);
+    const el = sheet('<h3>حفظ ص ' + AR(n) + ' في علامة</h3><div class="sub" style="text-align:center;margin-bottom:10px">اختر لون العلامة، أو اضغط مطولاً لتسميتها أو مسحها</div>' + BM('madina').map((_, i) => bmCard(i, false, 'madina')).join(''));
+    bindBm(el, (i) => { const b = BM('madina')[i]; b.leaf = n; b.at = Date.now(); ctx.persist(); el.remove(); renderPage(m); }, () => { el.remove(); renderPage(m); document.getElementById('qMark').click(); }, 'madina');
+  };
+  document.getElementById('qLook').onclick = () => {
+    const el = sheet('<h3>مظهر القراءة</h3>' + themeCards());
+    bindThemes(el, () => { el.remove(); renderPage(m); });
   };
   document.getElementById('qGo').onclick = () => {
     const v = prompt('رقم الصفحة (١ – ٦٠٤)', String(n));
@@ -223,6 +229,11 @@ function renderIndex(m) {
     for (let j = 1; j <= m.juzCount; j++) b += '<button class="q-btn" data-p="' + m.juz(j).page.number + '">' + AR(j) + '</button>';
     body = '<div class="card"><div class="sub" style="margin-bottom:8px">اختر الجزء</div><div class="q-juz">' + b + '</div></div>';
   } else if (idxTab === 'marks') {
+    body = '<div class="card"><div class="bm-h"><b>متابعة القراءة والعلامات المرجعية</b><small>اختر علامة للانتقال إليها أو اضغط مطولاً لتسميتها أو مسحها</small></div>' +
+      '<div class="bm-sec">الفواصل والعلامات الملونة الخمس</div>' + BM('madina').map((_, i) => bmCard(i, true, 'madina')).join('') + '</div>';
+  } else if (idxTab === 'look') {
+    body = '<div class="card"><div class="bm-h"><b>مظهر القراءة والوضع الليلي</b><small>ألوان مريحة للعين تنطبق على المصحفين</small></div>' + themeCards() + '</div>';
+  } else if (idxTab === 'marks_old') {
     body = '<div class="card q-list">' + (q.marks.length ? q.marks.map((p) =>
       '<div class="it" data-p="' + p + '"><span class="num">🔖</span><span class="nm">' + esc(surahOfPage(m, p)) + '<small>الجزء ' + AR(m.page(p).juz.number) + '</small></span><span class="pg">ص ' + AR(p) + '</span></div>').join('')
       : '<div class="sub">لا توجد علامات بعد. اضغط 🔖 أثناء القراءة لحفظ الصفحة.</div>') + '</div>';
@@ -233,12 +244,14 @@ function renderIndex(m) {
     '<div class="card">' + edSwitch('madina') + '<div class="row"><b style="font-size:18px">المصحف الشريف</b>' +
       '<button class="pri" id="qCont">متابعة القراءة · ص ' + AR(q.page || 1) + '</button></div>' +
     '<div class="q-tabs">' +
-      [['surah', 'السور'], ['juz', 'الأجزاء'], ['search', 'بحث'], ['marks', 'العلامات']].map(([k, t]) =>
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['search', 'بحث'], ['marks', 'العلامات'], ['look', 'المظهر']].map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
     '<div class="q-credit">نص المصحف برواية حفص عن عاصم من إصدار مجمع الملك فهد لطباعة المصحف الشريف (الخط العثماني، ترقيم مصحف المدينة)، عبر مكتبة quran-text (CC BY 4.0).</div>';
   ctx.view.querySelectorAll('.q-tabs button').forEach((b) => b.onclick = () => { idxTab = b.dataset.t; render(); });
   ctx.view.querySelectorAll('[data-p]').forEach((el) => el.onclick = () => { Q().page = +el.dataset.p; mode = 'page'; render(); window.scrollTo(0, 0); });
+  bindBm(ctx.view, (i) => { const b = BM('madina')[i]; if (b.leaf == null) { bmEdit(i, render, 'madina'); return; } Q().page = b.leaf; mode = 'page'; render(); window.scrollTo(0, 0); }, render, 'madina');
+  bindThemes(ctx.view, render);
   bindEd();
   document.getElementById('qCont').onclick = () => { mode = 'page'; render(); window.scrollTo(0, 0); };
   if (idxTab === 'search') {
@@ -285,7 +298,12 @@ function shHizbOf(leaf) { let i = 0; while (i + 1 < SH_Q.length && SH_Q[i + 1] <
 function shJuzOf(leaf) { let i = 0; while (i + 1 < SH_JUZ.length && SH_JUZ[i + 1] <= leaf) i++; return i + 1; }
 // العلامات الخمس الملونة
 const BM_DEF = [['الورد اليومي', '#d64545'], ['الحفظ والمراجعة', '#2e9b57'], ['قراءة التدبر', '#2f6fd6'], ['قيام الليل', '#c29b1f'], ['علامة مرجعية ٥', '#8a4fd0']];
-function BM() {
+function BM(ed) {
+  if (ed === 'madina') {
+    const q = Q();
+    if (!q.bm) { const old = q.marks || []; q.bm = BM_DEF.map(([n], i) => ({ name: n, leaf: old[i] != null ? old[i] : null, at: old[i] != null ? Date.now() : 0 })); }
+    return q.bm;
+  }
   const sh = SH();
   if (!sh.bm) {
     const old = sh.marks || [];
@@ -298,13 +316,18 @@ function bmDate(t) {
   const d = new Date(t); let h = d.getHours(); const pm = h >= 12; h = h % 12 || 12;
   return d.getFullYear() + '/' + p2(d.getMonth() + 1) + '/' + p2(d.getDate()) + ' - ' + p2(h) + ':' + p2(d.getMinutes()) + (pm ? ' م' : ' ص');
 }
-function bmCard(i, withGo) {
-  const b = BM()[i], c = BM_DEF[i][1], has = b.leaf != null;
-  const nm = has && M ? M.surahs[shSurahOf(b.leaf) - 1].nameAr : '';
+// صفحة العلامة: في الشمرلي leaf، وفي المدينة رقم الصفحة نفسه
+function bmInfo(ed, l) {
+  if (ed === 'madina') return { nm: surahOfPage(M, l), pg: l, juz: M.page(l).juz ? M.page(l).juz.number : '' };
+  return { nm: M ? M.surahs[shSurahOf(l) - 1].nameAr : '', pg: shPrinted(l), juz: shJuzOf(l) };
+}
+function bmCard(i, withGo, ed) {
+  const b = BM(ed)[i], c = BM_DEF[i][1], has = b.leaf != null;
+  const inf = has && M ? bmInfo(ed, b.leaf) : null;
   return '<div class="bm' + (has ? '' : ' empty') + '" data-bm="' + i + '" style="--c:' + c + '"><span class="dot"></span><div class="bi"><b>' + esc(b.name) + '</b>' +
-    (has ? '<span>سورة ' + esc(nm) + ' • صفحة ' + AR(shPrinted(b.leaf)) + ' • الجزء ' + AR(shJuzOf(b.leaf)) + '</span><small>' + bmDate(b.at) + '</small>'
+    (inf ? '<span>سورة ' + esc(inf.nm) + ' • صفحة ' + AR(inf.pg) + ' • الجزء ' + AR(inf.juz) + '</span><small>' + bmDate(b.at) + '</small>'
       : '<span>فارغة، احفظ فيها صفحة من زر 🔖 أثناء القراءة</span>') + '</div>' +
-    (has && withGo ? '<button class="go" data-go="' + i + '">انتقال ص ' + AR(shPrinted(b.leaf)) + '</button>' : '') + '</div>';
+    (inf && withGo ? '<button class="go" data-go="' + i + '">انتقال ص ' + AR(inf.pg) + '</button>' : '') + '</div>';
 }
 function sheet(html) {
   const el = document.createElement('div'); el.className = 'sh-sheet';
@@ -313,8 +336,8 @@ function sheet(html) {
   document.body.appendChild(el);
   return el;
 }
-function bmEdit(i, after) {
-  const b = BM()[i];
+function bmEdit(i, after, ed) {
+  const b = BM(ed)[i];
   const el = sheet('<h3 style="color:' + BM_DEF[i][1] + '">' + esc(b.name) + '</h3>' +
     '<div class="sub" style="margin:8px 0 4px">اسم العلامة</div><input id="bmName" value="' + esc(b.name) + '" style="width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:10px;font:500 15px Tajawal">' +
     '<div class="row" style="margin-top:12px;gap:8px;justify-content:flex-start;flex-wrap:wrap"><button class="pri" id="bmSave">حفظ الاسم</button>' +
@@ -327,14 +350,14 @@ function bmEdit(i, after) {
   const clr = el.querySelector('#bmClr'); if (clr) clr.onclick = () => { b.leaf = null; b.at = 0; done(); };
 }
 // ضغط مطوّل على العلامة = تسمية أو مسح
-function bindBm(root, onTap, after) {
+function bindBm(root, onTap, after, ed) {
   root.querySelectorAll('.bm').forEach((el) => {
     const i = +el.dataset.bm; let t = null, long = false, sx = 0, sy = 0;
     const cancel = () => { clearTimeout(t); t = null; };
-    el.addEventListener('touchstart', (e) => { long = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY; cancel(); t = setTimeout(() => { long = true; t = null; bmEdit(i, after); }, 550); }, { passive: true });
+    el.addEventListener('touchstart', (e) => { long = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY; cancel(); t = setTimeout(() => { long = true; t = null; bmEdit(i, after, ed); }, 550); }, { passive: true });
     el.addEventListener('touchmove', (e) => { if (Math.abs(e.touches[0].clientX - sx) > 10 || Math.abs(e.touches[0].clientY - sy) > 10) cancel(); }, { passive: true });
     el.addEventListener('touchend', cancel);
-    el.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!long) { cancel(); long = true; bmEdit(i, after); } });
+    el.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!long) { cancel(); long = true; bmEdit(i, after, ed); } });
     el.onclick = (e) => { if (long) { long = false; return; } onTap(i, e); };
   });
 }
@@ -408,7 +431,7 @@ function renderShamIndex(m) {
     body = '<div class="card"><div class="bm-h"><b>متابعة القراءة والعلامات المرجعية</b><small>اختر علامة للانتقال إليها أو اضغط مطولاً لتسميتها أو مسحها</small></div>' +
       '<div class="bm-sec">الفواصل والعلامات الملونة الخمس</div>' + BM().map((_, i) => bmCard(i, true)).join('') + '</div>';
   } else if (idxTab === 'look') {
-    body = '<div class="card"><div class="bm-h"><b>مظهر القراءة والوضع الليلي</b><small>فلاتر لونية متقدمة تحافظ على دقة خط مصحف الشمرلي وتريح العين</small></div>' + themeCards() +
+    body = '<div class="card"><div class="bm-h"><b>مظهر القراءة والوضع الليلي</b><small>فلاتر لونية متقدمة تحافظ على دقة خط مصحف الشمرلي وتريح العين (وتنطبق على مصحف المدينة أيضًا)</small></div>' + themeCards() +
       '<div class="sub" style="text-align:center;line-height:1.8">الألوان تتغير على الشاشة فقط، وصفحات المصحف نفسها محفوظة كما هي بدون أي تعديل.</div></div>';
   } else if (idxTab === 'dl') {
     const st = shSt || { done: 0, total: SH_LEAVES, running: false };

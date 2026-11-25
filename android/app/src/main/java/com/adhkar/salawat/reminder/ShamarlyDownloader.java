@@ -28,23 +28,35 @@ public final class ShamarlyDownloader {
 
     private ShamarlyDownloader() {}
 
-    public static File dir(Context c) {
-        File d = new File(c.getFilesDir(), "shamarly");
+    /** المصدر: "archive" (صور archive.org بالإطار) أو "qa" (نسخة Quran Android الأخف). */
+    private static volatile String src = "archive";
+    public static void setSrc(String s) { src = "qa".equals(s) ? "qa" : "archive"; }
+    public static String src() { return src; }
+
+    public static File dir(Context c) { return dir(c, src); }
+    static File dir(Context c, String s) {
+        File d = new File(c.getFilesDir(), "qa".equals(s) ? "shamarly_qa" : "shamarly");
         if (!d.exists()) d.mkdirs();
         return d;
     }
+    private static boolean qa(String s, int leaf) { return "qa".equals(s) && leaf >= 1; }
+    static String url(String s, int leaf) {
+        return qa(s, leaf) ? String.format(java.util.Locale.US, "https://files.quran.app/hafs/shemerly/width_1200/page%03d.png", leaf)
+            : "https://archive.org/download/" + ID + "/page/n" + leaf + "_w" + WIDTH + ".jpg";
+    }
 
     /** الصفحة تُحفظ كما هي تمامًا من المصدر (بدون أي ضغط أو تعديل) حفاظًا على نص المصحف. */
-    public static File file(Context c, int leaf) { return new File(dir(c), leaf + ".jpg"); }
-    private static boolean has(Context c, int leaf) {
-        File f = file(c, leaf);
+    static File file(Context c, String s, int leaf) { return new File(dir(c, s), leaf + (qa(s, leaf) ? ".png" : ".jpg")); }
+    private static boolean has(Context c, String s, int leaf) {
+        File f = file(c, s, leaf);
         return f.exists() && f.length() > 1000;
     }
+    private static boolean page(String n) { return n.endsWith(".jpg") || n.endsWith(".png"); }
 
     public static int countDone(Context c) {
         String[] names = dir(c).list();
         int n = 0;
-        if (names != null) for (String s : names) if (s.endsWith(".jpg")) n++;
+        if (names != null) for (String s : names) if (page(s)) n++;
         return n;
     }
 
@@ -52,7 +64,7 @@ public final class ShamarlyDownloader {
     public static List<String> files(Context c) {
         List<String> out = new ArrayList<>();
         String[] names = dir(c).list();
-        if (names != null) for (String s : names) if (s.endsWith(".jpg")) out.add(s);
+        if (names != null) for (String s : names) if (page(s)) out.add(s);
         return out;
     }
 
@@ -61,16 +73,17 @@ public final class ShamarlyDownloader {
     /** حفظ صفحة واحدة أثناء القراءة (حتى تفتح بعد ذلك بلا إنترنت). */
     public static void cacheOne(Context ctx, int leaf) {
         final Context c = ctx.getApplicationContext();
-        if (leaf < 0 || leaf >= LEAVES || has(c, leaf)) return;
+        final String s = src;
+        if (leaf < 0 || leaf >= LEAVES || has(c, s, leaf)) return;
         one.execute(() -> {
-            if (has(c, leaf)) return;
-            fetchPage(c, leaf);
+            if (has(c, s, leaf)) return;
+            fetchPage(c, s, leaf);
         });
     }
 
-    private static boolean fetchPage(Context c, int leaf) {
-        boolean ok = fetch("https://archive.org/download/" + ID + "/page/n" + leaf + "_w" + WIDTH + ".jpg", file(c, leaf));
-        if (ok) new File(dir(c), leaf + ".webp").delete();   // نسخة مضغوطة قديمة إن وُجدت
+    private static boolean fetchPage(Context c, String s, int leaf) {
+        boolean ok = fetch(url(s, leaf), file(c, s, leaf));
+        if (ok) new File(dir(c, s), leaf + ".webp").delete();   // نسخة مضغوطة قديمة إن وُجدت
         return ok;
     }
 
@@ -82,13 +95,14 @@ public final class ShamarlyDownloader {
         final Context c = ctx.getApplicationContext();
         cancel = false;
         lastError = "";
+        final String s = src;
         worker = new Thread(() -> {
             int fails = 0;
             for (int leaf = 0; leaf < LEAVES && !cancel; leaf++) {
-                if (has(c, leaf)) continue;
+                if (has(c, s, leaf)) continue;
                 boolean ok = false;
                 for (int attempt = 0; attempt < 3 && !ok && !cancel; attempt++) {
-                    ok = fetchPage(c, leaf);
+                    ok = fetchPage(c, s, leaf);
                     if (!ok) try { Thread.sleep(1500L * (attempt + 1)); } catch (InterruptedException ignored) {}
                 }
                 if (!ok && ++fails > 15) { lastError = "network"; break; }

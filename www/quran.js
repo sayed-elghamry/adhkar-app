@@ -27,6 +27,8 @@ const CSS = `
 .sh-head span{flex:1;text-align:center}.sh-head span:first-child{text-align:right}.sh-head span:last-child{text-align:left}
 .sh-ctl{position:fixed;inset:auto 0 0 0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);box-shadow:0 -4px 16px rgba(0,0,0,.15);transform:translateY(110%);transition:transform .2s}
 .sh-ctl.on{transform:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) #shImg.qa{filter:invert(.9) hue-rotate(180deg)}}
+:root[data-theme=dark] #shImg.qa{filter:invert(.9) hue-rotate(180deg)}
 body.reading{padding:0}
 body.reading .wrap{max-width:none}
 body.reading header,body.reading nav{display:none}
@@ -267,7 +269,7 @@ let shSt = null;   // حالة التحميل من الجهاز
 function R() { return ctx && ctx.R; }
 function refreshShStatus() {
   if (!R() || !R().shamarlyStatus) return Promise.resolve(null);
-  return R().shamarlyStatus().then((st) => {
+  return R().shamarlyStatus({ src: shSrc() }).then((st) => {
     shSt = st; shFiles = {};
     (st.files || []).forEach((n) => { const l = parseInt(n, 10); if (!isNaN(l) && (!shFiles[l] || /webp$/.test(n))) shFiles[l] = n; });
     return st;
@@ -278,7 +280,7 @@ let shFiles = {};   // الصفحات المحفوظة على الهاتف: رق
 function cachePage(leaf) {
   if (leaf < 0 || leaf >= SH_LEAVES || shFiles[leaf] || !R() || !R().shamarlyCache) return;
   shFiles[leaf] = leaf + '.jpg';   // يُفترض النجاح؛ إن فشل يعود العرض للإنترنت تلقائيًا
-  R().shamarlyCache({ leaf }).catch(() => {});
+  R().shamarlyCache({ leaf, src: shSrc() }).catch(() => {});
 }
 // صفحات مدمجة داخل التطبيق (تُضاف وقت البناء)؛ إن لم توجد نعود للمحفوظ أو للإنترنت
 let shBundled = null;
@@ -307,8 +309,13 @@ function renderShamIndex(m) {
   } else if (idxTab === 'dl') {
     const st = shSt || { done: 0, total: SH_LEAVES, running: false };
     const pct = Math.round(st.done / st.total * 100);
-    body = '<div class="card"><b>تحميل المصحف للقراءة بلا إنترنت</b>' +
-      '<div class="sub" style="line-height:1.9;margin:6px 0">كل صفحة تقرأها تُحفظ تلقائيًا على الهاتف كما هي من المصدر بدون أي ضغط. ولتحميل المصحف كله مرة واحدة (حوالي ١٨٠ ميجا) اضغط الزر. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
+    body = '<div class="card"><b>نسخة الصفحات</b>' +
+      '<div class="q-tabs" style="margin-top:8px">' +
+        '<button class="q-btn' + (shSrc() === 'qa' ? ' on' : '') + '" data-src="qa">الأخف (نص فقط)</button>' +
+        '<button class="q-btn' + (shSrc() !== 'qa' ? ' on' : '') + '" data-src="archive">بالإطار والزخارف</button>' +
+      '</div><div class="sub" style="margin-top:6px">النص واحد في النسختين. الأخف حجمها حوالي ١٢٠ ميجا كاملة، والتي بالإطار حوالي ١٨٠ ميجا.</div></div>' +
+      '<div class="card"><b>تحميل المصحف للقراءة بلا إنترنت</b>' +
+      '<div class="sub" style="line-height:1.9;margin:6px 0">كل صفحة تقرأها تُحفظ تلقائيًا على الهاتف كما هي من المصدر بدون أي ضغط. ولتحميل المصحف كله مرة واحدة (حوالي ' + (shSrc() === 'qa' ? '١٢٠' : '١٨٠') + ' ميجا) اضغط الزر. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
       '<div class="prog"><i style="width:' + pct + '%"></i></div><div class="sub" id="shDlTxt">' + AR(st.done) + ' / ' + AR(st.total) + ' صفحة' + (st.running ? ' · جارٍ التحميل…' : '') + (st.error ? ' · توقف بسبب الاتصال' : '') + '</div>' +
       '<div class="row" style="margin-top:10px;justify-content:flex-start;gap:8px">' +
         (st.running ? '<button class="ghost" id="shStop">إيقاف</button>' : (st.done < st.total ? '<button class="pri" id="shDl">' + (st.done ? 'استكمال التحميل' : 'تحميل الآن') + '</button>' : '<span style="color:var(--ok)">✓ المصحف محفوظ في الهاتف</span>')) +
@@ -327,12 +334,19 @@ function renderShamIndex(m) {
       [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].filter(([k]) => k !== 'dl' || !(shBundled && shBundled.size >= 500) || (shSt && shSt.done > 0)).map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
-    '<div class="q-credit">مصحف الشمرلي بخط محمد سعد إبراهيم «حداد»، نسخة مجانية يجوز نسخها وتداولها لغير الأغراض التجارية، مستضافة على archive.org.</div>';
+    '<div class="q-credit">مصحف الشمرلي بخط محمد سعد إبراهيم «حداد»، نسخة مجانية يجوز نسخها وتداولها لغير الأغراض التجارية. النسخة المصوّرة بالإطار من archive.org، والنسخة الأخف من مشروع Quran Android (files.quran.app).</div>';
   bindEd();
   ctx.view.querySelectorAll('.q-tabs button[data-t]').forEach((b) => b.onclick = () => { idxTab = b.dataset.t; render(); });
   ctx.view.querySelectorAll('[data-l]').forEach((el) => el.onclick = () => { SH().leaf = +el.dataset.l; mode = 'sham'; render(); window.scrollTo(0, 0); });
   document.getElementById('shOpen').onclick = () => { mode = 'sham'; render(); window.scrollTo(0, 0); };
-  const act = (fn) => () => { if (!R()) return; R()[fn]().then((st) => { shSt = st; render(); }).catch(() => {}); };
+  ctx.view.querySelectorAll('[data-src]').forEach((b) => b.onclick = () => {
+    if (shSrc() === b.dataset.src) return;
+    if (R() && R().shamarlyStop) R().shamarlyStop({ src: shSrc() }).catch(() => {});
+    Q().shSrc = b.dataset.src; ctx.persist(); shFiles = {}; shSt = null;
+    Object.keys(shLoaded).forEach((k) => delete shLoaded[k]); Object.keys(shCrop).forEach((k) => delete shCrop[k]); shLastCrop = null;
+    refreshShStatus().then(render);
+  });
+  const act = (fn) => () => { if (!R()) return; R()[fn]({ src: shSrc() }).then((st) => { shSt = st; refreshShStatus().then(render); }).catch(() => {}); };
   if (document.getElementById('shDl')) document.getElementById('shDl').onclick = act('shamarlyDownload');
   if (document.getElementById('shStop')) document.getElementById('shStop').onclick = act('shamarlyStop');
   if (document.getElementById('shDel')) document.getElementById('shDel').onclick = () => { if (confirm('حذف صفحات المصحف المحفوظة؟')) act('shamarlyDelete')(); };
@@ -350,7 +364,13 @@ let shCtl = false;
 let shHinted = false;   // أول دخول: تظهر الأزرار ثانيتين ثم تختفي
 const shCrop = {};
 let shLastCrop = null;
-function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
+// مصدر الصور: 'qa' = نسخة Quran Android (أخف، نص فقط بخلفية شفافة)، 'archive' = النسخة المصوّرة بالإطار
+function shSrc() { return Q().shSrc || 'qa'; }
+function useQa(leaf) { return shSrc() === 'qa' && leaf >= 1; }
+const QA_URL = 'https://files.quran.app/hafs/shemerly/width_1200/page';
+function archUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
+function shUrl(leaf, w) { return useQa(leaf) ? QA_URL + String(leaf).padStart(3, '0') + '.png' : archUrl(leaf, w); }
+const isRemote = (u) => u.indexOf('archive.org') >= 0 || u.indexOf('quran.app') >= 0;
 function renderSham() {
   const sh = SH();
   if (!sh.leaf) sh.leaf = 1;
@@ -366,7 +386,7 @@ function renderSham() {
     '<div class="sh-head"><span>سورة ' + esc(surahName) + '</span><span>ص ' + AR(pageNo) + '</span><span>جزء ' + AR(shJuzOf(leaf)) + ' | حزب ' + AR(shHizbOf(leaf)) + '</span></div>' +
     '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:0;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;touch-action:pan-y">' +
       '<div id="shBox" style="position:relative;width:100%;overflow:hidden;transform-origin:center center;will-change:transform">' +
-      '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
+      '<img id="shImg" class="' + (useQa(leaf) ? 'qa' : '') + '" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
       '</div>' +
       '<div id="shMsg" class="sub" style="position:absolute;top:40%">جارٍ تحميل الصفحة…</div>' +
     '</div>' +
@@ -415,8 +435,9 @@ function renderSham() {
         const g = cv.getContext('2d'); g.drawImage(t, 0, 0, cw, ch);
         const d = g.getImageData(0, 0, cw, ch).data;
         const lum = (i) => (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10;
-        let bg = 0; [0, cw - 1, (ch - 1) * cw, ch * cw - 1].forEach((p) => { bg += lum(p * 4); }); bg /= 4;
-        const ink = (x, y) => Math.abs(lum((y * cw + x) * 4) - bg) > 45;
+        let bg = 0, al = 0; [0, cw - 1, (ch - 1) * cw, ch * cw - 1].forEach((p) => { bg += lum(p * 4); al += d[p * 4 + 3]; }); bg /= 4;
+        const clear = al < 40;   // خلفية شفافة (نسخة Quran Android): الحبر = ما ليس شفافًا
+        const ink = clear ? (x, y) => d[(y * cw + x) * 4 + 3] > 60 : (x, y) => Math.abs(lum((y * cw + x) * 4) - bg) > 45;
         const rowHas = (y) => { let n = 0; for (let x = 0; x < cw; x++) if (ink(x, y)) n++; return n > cw * 0.02; };
         const colHas = (x) => { let n = 0; for (let y = 0; y < ch; y++) if (ink(x, y)) n++; return n > ch * 0.02; };
         let y0 = 0, y1 = ch - 1, x0 = 0, x1 = cw - 1;
@@ -434,7 +455,7 @@ function renderSham() {
   };
   img.onload = () => {
     if (msg.parentNode) msg.remove();
-    if (img.src.indexOf('archive.org') >= 0) { cachePage(leaf); cachePage(leaf + 1); }
+    if (isRemote(img.src)) { cachePage(leaf); cachePage(leaf + 1); }
     applyCrop(shCrop[leaf] || shLastCrop);
     detectCrop(img.src);
     // بعد ظهور النسخة السريعة، حمّل النسخة الواضحة واستبدلها
@@ -447,8 +468,9 @@ function renderSham() {
   img.onerror = () => {
     const stage = +(img.dataset.stage || 0);
     img.dataset.stage = stage + 1;
-    if (stage === 0 && img.src.indexOf('archive.org') < 0) { img.src = shUrl(leaf, wLow); return; }   // الصفحة غير محفوظة بعد
+    if (stage === 0 && !isRemote(img.src)) { img.src = shUrl(leaf, wLow); return; }   // الصفحة غير محفوظة بعد
     if (stage <= 1) { img.src = shUrl(leaf, 0); return; }
+    if (stage === 2 && useQa(leaf)) { img.src = archUrl(leaf, 900); return; }   // احتياطي: النسخة الأخرى
     msg.innerHTML = 'تعذّر تحميل الصفحة. تأكد من الاتصال بالإنترنت.<br><button class="q-btn" id="shRetry" style="margin-top:8px">إعادة المحاولة</button> <button class="q-btn" id="shWeb" style="margin-top:8px">فتح في المتصفح</button>';
     document.getElementById('shRetry').onclick = () => renderSham();
     document.getElementById('shWeb').onclick = () => {

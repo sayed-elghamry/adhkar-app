@@ -203,6 +203,7 @@ public class ReminderPlugin extends Plugin {
 
     @PluginMethod
     public void shamarlyStatus(PluginCall call) {
+        if (call.hasOption("src")) ShamarlyDownloader.setSrc(call.getString("src"));
         JSObject r = new JSObject();
         r.put("done", ShamarlyDownloader.countDone(getContext()));
         r.put("total", ShamarlyDownloader.LEAVES);
@@ -215,24 +216,28 @@ public class ReminderPlugin extends Plugin {
 
     @PluginMethod
     public void shamarlyDownload(PluginCall call) {
+        if (call.hasOption("src")) ShamarlyDownloader.setSrc(call.getString("src"));
         ShamarlyDownloader.start(getContext());
         shamarlyStatus(call);
     }
 
     @PluginMethod
     public void shamarlyCache(PluginCall call) {
+        if (call.hasOption("src")) ShamarlyDownloader.setSrc(call.getString("src"));
         ShamarlyDownloader.cacheOne(getContext(), call.getInt("leaf", -1));
         call.resolve();
     }
 
     @PluginMethod
     public void shamarlyStop(PluginCall call) {
+        if (call.hasOption("src")) ShamarlyDownloader.setSrc(call.getString("src"));
         ShamarlyDownloader.stop();
         shamarlyStatus(call);
     }
 
     @PluginMethod
     public void shamarlyDelete(PluginCall call) {
+        if (call.hasOption("src")) ShamarlyDownloader.setSrc(call.getString("src"));
         ShamarlyDownloader.deleteAll(getContext());
         shamarlyStatus(call);
     }

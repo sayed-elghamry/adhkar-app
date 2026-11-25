@@ -6,15 +6,14 @@ jobs:
     steps:
       - run: |
           pip install --quiet pillow
-          B=https://files.quran.app/hafs/shemerly/width_1200
-          for n in 002 100 250 400 520; do curl -sL -m 60 $B/page$n.png -o p$n.png; done
+          curl -sL -m 60 https://files.quran.app/hafs/shemerly/width_1200/page004.png -o a.png
+          curl -sL -m 60 https://archive.org/download/20191116_20191116_1655/page/n4_w900.jpg -o b.jpg
           python3 - <<'PY'
-          from PIL import Image, ImageChops
-          import os
-          for n in ['002','100','250','400','520']:
-              f=f'p{n}.png'; im=Image.open(f)
-              im.save(f'w{n}.webp','WEBP',lossless=True,method=6,quality=100)
-              back=Image.open(f'w{n}.webp').convert('RGBA')
-              same=ImageChops.difference(back, im.convert('RGBA')).getbbox() is None
-              print('page',n,im.size,im.mode,len(im.getcolors(70000) or []),'colors png',os.path.getsize(f),'webp-lossless',os.path.getsize(f'w{n}.webp'),'identical',same)
+          from PIL import Image
+          import base64, io
+          for f in ['a.png','b.jpg']:
+              im=Image.open(f).convert('RGB'); print(f, im.size)
+              c=im.crop((0,0,im.width,im.height//3)).resize((500, round(im.height//3*500/im.width)))
+              bio=io.BytesIO(); c.save(bio,'JPEG',quality=70)
+              print('B64'+f+':'+base64.b64encode(bio.getvalue()).decode())
           PY

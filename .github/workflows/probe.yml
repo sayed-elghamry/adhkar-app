@@ -5,8 +5,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          B=https://files.quran.app/hafs/shemerly
-          for u in $B/width_1200/page001.png $B/width_1200/page002.png $B/width_1200/page250.png $B/zips/images_1200.zip $B/zips/images_1200.zip.md5; do
-            echo "== $u"; curl -sIL -m 30 "$u" | grep -iE "^HTTP|content-length|content-type|last-modified" ; done
-          curl -sL -m 60 $B/width_1200/page250.png -o p.png && python3 -c "
-          import struct;d=open('p.png','rb').read();print('png',len(d),struct.unpack('>II',d[16:24]), 'colortype',d[25],'bitdepth',d[24])"
+          pip install --quiet pillow
+          B=https://files.quran.app/hafs/shemerly/width_1200
+          for n in 002 100 250 400 520; do curl -sL -m 60 $B/page$n.png -o p$n.png; done
+          python3 - <<'PY'
+          from PIL import Image, ImageChops
+          import os
+          for n in ['002','100','250','400','520']:
+              f=f'p{n}.png'; im=Image.open(f)
+              im.save(f'w{n}.webp','WEBP',lossless=True,method=6,quality=100)
+              back=Image.open(f'w{n}.webp').convert('RGBA')
+              same=ImageChops.difference(back, im.convert('RGBA')).getbbox() is None
+              print('page',n,im.size,im.mode,len(im.getcolors(70000) or []),'colors png',os.path.getsize(f),'webp-lossless',os.path.getsize(f'w{n}.webp'),'identical',same)
+          PY

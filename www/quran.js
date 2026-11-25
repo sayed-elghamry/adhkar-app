@@ -23,6 +23,13 @@ function mushaf() {
 }
 
 const CSS = `
+.sh-head{display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top) + 6px) 14px 6px;font:500 14px 'Tajawal';color:var(--ink);background:var(--bg);border-bottom:1px solid var(--line)}
+.sh-head b{font-weight:700;color:var(--green)}
+.sh-ctl{position:fixed;inset:auto 0 0 0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);box-shadow:0 -4px 16px rgba(0,0,0,.15);transform:translateY(110%);transition:transform .2s}
+.sh-ctl.on{transform:none}
+body.reading{padding:0}
+body.reading .wrap{max-width:none}
+body.reading header,body.reading nav{display:none}
 .q-top{position:sticky;top:0;z-index:3;background:var(--bg);padding:6px 0}
 .q-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .q-bar .ttl{font:700 15px 'Tajawal';text-align:center;flex:1;line-height:1.3}
@@ -316,6 +323,7 @@ function renderShamIndex(m) {
 }
 const shLoaded = {};
 let shZoom = 1;
+let shCtl = true;   // أزرار التحكم ظاهرة أول مرة
 const shCrop = {};
 let shLastCrop = null;
 function shUrl(leaf, w) { return 'https://archive.org/download/' + SH_ID + '/page/n' + leaf + (w ? '_w' + w : '') + '.jpg'; }
@@ -329,33 +337,42 @@ function renderSham() {
   const marked = sh.marks.indexOf(leaf) >= 0;
   const w = 900;   // دقة كافية للقراءة وأسرع في التحميل
   const wLow = 360;
+  document.body.classList.add('reading');
   ctx.view.innerHTML =
-    '<div class="q-top"><div class="q-bar">' +
-      '<button class="q-btn" id="qBack">☰</button>' +
-      '<div class="ttl">' + esc(surahName) + '<small>الشمرلي · الصفحة ' + AR(pageNo) + ' · الجزء ' + AR(shJuzOf(leaf)) + '</small></div>' +
-      '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
-    '</div></div>' +
-    '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:6px -12px;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y">' +
+    '<div class="sh-head"><b>سورة ' + esc(surahName) + '</b><span>الجزء ' + AR(shJuzOf(leaf)) + '</span><b>صفحة ' + AR(pageNo) + '</b></div>' +
+    '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:0;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;touch-action:pan-y">' +
       '<div id="shBox" style="position:relative;width:100%;overflow:hidden;transform-origin:center center;will-change:transform">' +
       '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
       '</div>' +
-      '<div id="shMsg" class="sub" style="position:absolute">جارٍ تحميل الصفحة…</div>' +
+      '<div id="shMsg" class="sub" style="position:absolute;top:40%">جارٍ تحميل الصفحة…</div>' +
     '</div>' +
-    '<div class="q-bar" style="margin-top:6px">' +
-      '<button class="q-btn" id="qNext">→ التالية</button>' +
-      '<button class="q-btn" id="qZout" aria-label="تصغير">－</button>' +
-      '<button class="q-btn" id="qGo">انتقال</button>' +
-      '<button class="q-btn" id="qZin" aria-label="تكبير">＋</button>' +
-      '<button class="q-btn" id="qPrev">السابقة ←</button>' +
-    '</div>' +
-    '<div class="sub" style="text-align:center;margin-top:4px">للتكبير: بإصبعين، أو المس الصفحة مرتين، أو زر ＋</div>';
+    '<div class="sh-ctl' + (shCtl ? ' on' : '') + '" id="shCtl">' +
+      '<div class="q-bar">' +
+        '<button class="q-btn" id="qBack">☰ الفهرس</button>' +
+        '<button class="q-btn" id="qHome">⌂ الرئيسية</button>' +
+        '<button class="q-btn' + (marked ? ' on' : '') + '" id="qMark">🔖</button>' +
+      '</div>' +
+      '<div class="q-bar" style="margin-top:8px">' +
+        '<button class="q-btn" id="qNext">→ التالية</button>' +
+        '<button class="q-btn" id="qZout" aria-label="تصغير">－</button>' +
+        '<button class="q-btn" id="qGo">انتقال</button>' +
+        '<button class="q-btn" id="qZin" aria-label="تكبير">＋</button>' +
+        '<button class="q-btn" id="qPrev">السابقة ←</button>' +
+      '</div>' +
+      '<div class="sub" style="text-align:center;margin-top:6px">المس الصفحة مرة لإظهار/إخفاء الأزرار، ومرتين للتكبير، واسحب يمينًا أو يسارًا للتقليب</div>' +
+    '</div>';
   const img = document.getElementById('shImg'), msg = document.getElementById('shMsg');
   const box = document.getElementById('shBox');
   // قص الهوامش البيضاء حتى تملأ الصفحة عرض الشاشة مثل مصحف المدينة
   const applyCrop = (cr) => {
     if (!cr || !img.naturalWidth) return;
-    const W = box.clientWidth || 360;
-    const dw = W / cr.w, dh = dw * img.naturalHeight / img.naturalWidth;   // مقاس الصورة كاملة بعد التكبير
+    box.style.width = '100%';
+    let W = box.clientWidth || 360;
+    let dw = W / cr.w, dh = dw * img.naturalHeight / img.naturalWidth;   // مقاس الصورة كاملة بعد التكبير
+    // لو الصفحة أطول من الشاشة: صغّرها لتظهر كاملة بدون تمرير
+    const head = document.querySelector('.sh-head');
+    const avail = window.innerHeight - (head ? head.getBoundingClientRect().bottom : 0) - 4;
+    if (cr.h * dh > avail && avail > 300) { const f = avail / (cr.h * dh); W = W * f; dw *= f; dh *= f; box.style.width = Math.round(W) + 'px'; }
     box.style.height = Math.round(cr.h * dh) + 'px';
     img.style.position = 'absolute';
     img.style.width = Math.round(dw) + 'px';
@@ -424,6 +441,7 @@ function renderSham() {
   document.getElementById('qNext').onclick = () => go(1);
   document.getElementById('qPrev').onclick = () => go(-1);
   document.getElementById('qBack').onclick = () => { mode = 'index'; Q().ed = 'sham'; render(); };
+  document.getElementById('qHome').onclick = () => { document.body.classList.remove('reading'); mode = 'index'; if (ctx.go) ctx.go('home'); };
   document.getElementById('qMark').onclick = () => {
     const i = sh.marks.indexOf(leaf);
     if (i >= 0) sh.marks.splice(i, 1); else sh.marks.unshift(leaf);
@@ -459,7 +477,7 @@ function renderSham() {
   if (shZoom > 1) { if (img.complete && img.clientWidth) setZoom(shZoom, true); else img.addEventListener('load', () => setZoom(shZoom, true), { once: true }); }
   document.getElementById('qZin').onclick = () => setZoom(shZoom + 0.5, shZoom === 1);
   document.getElementById('qZout').onclick = () => setZoom(shZoom - 0.5);
-  let x0 = null, y0 = null, px = 0, py = 0, d0 = 0, z0 = 1, pinch = false, lastTap = 0;
+  let x0 = null, y0 = null, px = 0, py = 0, d0 = 0, z0 = 1, pinch = false, lastTap = 0, tapT = null;
   const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   pg.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) { pinch = true; d0 = dist(e.touches) || 1; z0 = shZoom; x0 = null; return; }
@@ -480,7 +498,8 @@ function renderSham() {
     x0 = null;
     if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {   // لمستان سريعتان = تكبير/تصغير
       const now = Date.now();
-      if (now - lastTap < 320) { lastTap = 0; setZoom(shZoom > 1 ? 1 : 2.2, true); } else lastTap = now;
+      if (now - lastTap < 320) { lastTap = 0; clearTimeout(tapT); setZoom(shZoom > 1 ? 1 : 2.2, true); }
+      else { lastTap = now; clearTimeout(tapT); tapT = setTimeout(() => { shCtl = !shCtl; const el = document.getElementById('shCtl'); if (el) el.classList.toggle('on', shCtl); }, 330); }
       return;
     }
     if (shZoom === 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx > 0 ? 1 : -1);
@@ -489,6 +508,7 @@ function renderSham() {
 
 function render() {
   if (!M) return;
+  if (mode !== 'sham') document.body.classList.remove('reading');
   if (mode === 'page') renderPage(M);
   else if (mode === 'sham') renderSham();
   else renderIndex(M);

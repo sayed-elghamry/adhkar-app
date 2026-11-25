@@ -377,6 +377,7 @@ var awake=null;
 function render(){
   renderNav();
   var aw=tab==='quran';
+  if(!aw)document.body.classList.remove('reading');
   if(Reminder&&Reminder.keepAwake&&aw!==awake){awake=aw;Reminder.keepAwake({on:aw}).catch(function(){})}
   if(tab==='home')renderHome();
   else if(tab==='quran')renderQuran();
@@ -438,7 +439,7 @@ function bindDisplaySettings(){
 
 var quranMod=null;
 function renderQuran(){
-  var c={S:S,persist:persist,view:view,R:Reminder};
+  var c={S:S,persist:persist,view:view,R:Reminder,go:go};
   if(quranMod){quranMod.show(c);return}
   view.innerHTML='<div class="card sub" style="text-align:center;padding:30px">جارٍ تحميل المصحف…</div>';
   import('./quran.js').then(function(mod){quranMod=mod;if(tab==='quran')mod.show(c)})
@@ -696,7 +697,7 @@ function checkUpdate(force){
 
 function checkOpen(){
   if(!Reminder||!Reminder.consumeOpen)return;
-  Reminder.consumeOpen().then(function(r){if(r&&r.section==='kahf'){if(tab==='times'&&window.Prayer)Prayer.leave();tab='quran';render();var c={S:S,persist:persist,view:view,R:Reminder};import('./quran.js').then(function(m){quranMod=m;m.openSurah(c,18)}).catch(function(){});return}if(r&&r.section){if(tab==='times'&&window.Prayer)Prayer.leave();tab='adhkar';sec=r.section;window.scrollTo(0,0);render()}}).catch(function(){});
+  Reminder.consumeOpen().then(function(r){if(r&&r.section==='kahf'){if(tab==='times'&&window.Prayer)Prayer.leave();tab='quran';render();var c={S:S,persist:persist,view:view,R:Reminder,go:go};import('./quran.js').then(function(m){quranMod=m;m.openSurah(c,18)}).catch(function(){});return}if(r&&r.section){if(tab==='times'&&window.Prayer)Prayer.leave();tab='adhkar';sec=r.section;window.scrollTo(0,0);render()}}).catch(function(){});
 }
 
 /* ---------- البدء ---------- */

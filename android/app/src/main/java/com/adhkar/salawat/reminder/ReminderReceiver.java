@@ -22,7 +22,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             // لا نُظهر تذكيرًا متأخرًا جدًا (مثلًا بعد خروج الهاتف من سبات طويل)
             if (scheduled == 0L || (late < 10 * 60_000L)) {
                 shown = true;
-                int kind = scheduled == 0L ? ReminderScheduler.K_SALAWAT : ReminderScheduler.kindAt(scheduled);
+                int kind = scheduled == 0L ? ReminderScheduler.K_SALAWAT : ReminderScheduler.kindAt(context, scheduled);
                 ReminderScheduler.reschedule(context);
                 ReminderScheduler.showNow(context, kind, false, pr::finish);
             }

@@ -324,15 +324,19 @@ function tick(){
     showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
   }
   var mm=d.getMinutes(),hk=key+'m'+mm;
-  if(S.settings.half!==false&&(mm===20||mm===21||mm===40||mm===41)&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
-    S.lastHour=hk;persist();showToast(mm<30?'أستغفر الله العظيم وأتوب إليه':'لا حول ولا قوة إلا بالله',mm<30?'istighfar.mp3':'hawqala.mp3');
+  var ten=S.settings.step===10,kd=ten?Math.floor(mm/10)%3:(mm>=20&&mm<30?1:mm>=40&&mm<50?2:0);
+  if(S.settings.half!==false&&kd>0&&mm%10<2&&(ten||mm===20||mm===21||mm===40||mm===41)&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
+    S.lastHour=hk;persist();showToast(kd===1?'أستغفر الله العظيم وأتوب إليه':'لا حول ولا قوة إلا بالله',kd===1?'istighfar.mp3':'hawqala.mp3');
+  }
+  if(ten&&S.settings.half!==false&&(mm===30||mm===31)&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
+    S.lastHour=hk;persist();showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
   }
 }
 setInterval(tick,15000);
 
 function syncNative(){
   if(!Reminder)return Promise.resolve();
-  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false})
+  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false,step:S.settings.step===10?10:20})
     .then(function(r){NS=r;return r}).catch(function(){});
 }
 function refreshNative(){
@@ -369,8 +373,11 @@ function renderNav(){
 function go(t){if(tab==='times'&&t!=='times'&&window.Prayer)Prayer.leave();tab=t;window.scrollTo(0,0);render()}
 function pctx(){return {S:S,persist:persist,view:view,R:Reminder}}
 
+var awake=null;
 function render(){
   renderNav();
+  var aw=tab==='quran';
+  if(Reminder&&Reminder.keepAwake&&aw!==awake){awake=aw;Reminder.keepAwake({on:aw}).catch(function(){})}
   if(tab==='home')renderHome();
   else if(tab==='quran')renderQuran();
   else if(tab==='times')renderTimes();
@@ -561,6 +568,7 @@ function renderSettings(){
    '<div class="card"><b style="font-size:18px">التذكير بالصلاة على النبي ﷺ</b>'+
     '<div class="sw"><span>تذكير كل ساعة</span><input type="checkbox" id="sHourly" '+(s.hourly?'checked':'')+'></div>'+
     '<div class="sw"><span>أذكار ثلث الساعة<small class="sub" style="display:block">الصلاة على النبي ﷺ أول الساعة، «أستغفر الله» عند الدقيقة ٢٠، و«لا حول ولا قوة إلا بالله» عند الدقيقة ٤٠، وكل ذكر يتكرر مرتين خلال دقيقتين</small></span><input type="checkbox" id="sHalf" '+(s.half!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>ترتيب التنبيهات<small class="sub" style="display:block">'+(s.step===10?'كل ١٠ دقائق بالتتابع: صلاة على النبي ﷺ ← استغفار ← حوقلة، وكل ذكر مرتين':'كل ٢٠ دقيقة: الصلاة أول الساعة، الاستغفار عند ٢٠، الحوقلة عند ٤٠')+'</small></span><select id="sStep"><option value="20"'+(s.step!==10?' selected':'')+'>كل ٢٠ دقيقة</option><option value="10"'+(s.step===10?' selected':'')+'>كل ١٠ دقائق</option></select></div>'+
     '<div class="sw"><span>من الساعة</span><select id="sFrom">'+hourOpts(s.from)+'</select></div>'+
     '<div class="sw"><span>إلى الساعة</span><select id="sTo">'+hourOpts(s.to)+'</select></div>'+
     (NATIVE?'<div class="sw"><span>تشغيل الصوت حتى في الوضع الصامت<small class="sub" style="display:block">يُسمع على مستوى صوت المنبّه</small></span><input type="checkbox" id="sLoud" '+(s.loud?'checked':'')+'></div>':'')+
@@ -616,6 +624,7 @@ function renderSettings(){
   bind('sHourly','hourly',function(){syncNative().then(rerenderSettings)});
   if($('sLoud'))bind('sLoud','loud',function(){syncNative()});
   bind('sHalf','half',function(){syncNative().then(rerenderSettings)});
+  $('sStep').onchange=function(){s.step=+this.value;persist();syncNative().then(rerenderSettings)};
   function syncTimes(){if(window.Prayer&&window.adhan)Prayer.sync(pctx())}
   bind('sMorn','mAlarm',syncTimes);
   bind('sAdhan','adhan',syncTimes);bind('sDuha','duha',syncTimes);bind('sFri','friday',syncTimes);bind('sFast','fast',syncTimes);

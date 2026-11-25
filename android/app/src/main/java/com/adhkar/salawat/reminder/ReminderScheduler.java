@@ -60,6 +60,21 @@ public final class ReminderScheduler {
     /** دقائق التذكير داخل الساعة؛ كل ذكر من الاثنين يتكرر مرتين خلال دقيقتين. */
     private static final int[] THIRD_MINUTES = {0, 1, 20, 21, 40, 41};
     private static final int[] HOUR_MINUTES = {0, 1};
+    /** وضع «بالتتابع كل ١٠ دقائق»: صلاة، استغفار، حوقلة، ثم من جديد (كل واحد مرتين). */
+    private static final int[] TEN_MINUTES = {0, 1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51};
+    static final String K_STEP = "step";
+    public static int step(Context c) { return prefs(c).getInt(K_STEP, 20); }
+    public static void setStep(Context c, int v) { prefs(c).edit().putInt(K_STEP, v == 10 ? 10 : 20).apply(); }
+
+    public static int kindAt(Context c, long at) {
+        if (step(c) == 10) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTimeInMillis(at);
+            int k = (cal.get(Calendar.MINUTE) / 10) % 3;
+            return k == 1 ? K_ISTIGHFAR : k == 2 ? K_HAWQALA : K_SALAWAT;
+        }
+        return kindAt(at);
+    }
 
     public static int kindAt(long at) {
         Calendar cal = Calendar.getInstance();
@@ -109,7 +124,9 @@ public final class ReminderScheduler {
     }
 
     /** الموعد التالي: الساعة الكاملة (صلاة على النبي) أو نصفها (استغفار) داخل النافذة. */
-    static long computeNext(long now, int from, int to, boolean half) {
+    static long computeNext(long now, int from, int to, boolean half) { return computeNext(now, from, to, half, 20); }
+
+    static long computeNext(long now, int from, int to, boolean half, int step) {
         Calendar base = Calendar.getInstance();
         base.setTimeInMillis(now);
         base.set(Calendar.MINUTE, 0);
@@ -117,9 +134,9 @@ public final class ReminderScheduler {
         base.set(Calendar.MILLISECOND, 0);
         for (int hr = 0; hr < 49; hr++) {
             int h = base.get(Calendar.HOUR_OF_DAY);
-            for (int m : (half ? THIRD_MINUTES : HOUR_MINUTES)) {
+            for (int m : (!half ? HOUR_MINUTES : step == 10 ? TEN_MINUTES : THIRD_MINUTES)) {
                 // أذكار الثلث داخل النافذة فقط إذا لم تكن ساعة آخر تذكير
-                boolean ok = m < 15 ? inWindow(h, from, to) : (inWindow(h, from, to) && h != to);
+                boolean ok = m < 5 ? inWindow(h, from, to) : (inWindow(h, from, to) && h != to);
                 long t = base.getTimeInMillis() + m * 60_000L;
                 if (ok && t > now + 5_000) return t;
             }
@@ -166,7 +183,7 @@ public final class ReminderScheduler {
             prefs(c).edit().putLong(K_NEXT, 0L).apply();
             return 0L;
         }
-        long at = computeNext(System.currentTimeMillis(), fromHour(c), toHour(c), halfHour(c));
+        long at = computeNext(System.currentTimeMillis(), fromHour(c), toHour(c), halfHour(c), step(c));
         if (canScheduleExact(c)) {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
         } else {

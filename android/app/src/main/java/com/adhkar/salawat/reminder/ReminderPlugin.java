@@ -42,6 +42,7 @@ public class ReminderPlugin extends Plugin {
         ReminderScheduler.saveSettings(c, enabled, from, to);
         if (call.hasOption("playInSilent")) ReminderScheduler.setPlayInSilent(c, call.getBoolean("playInSilent", false));
         if (call.hasOption("halfHour")) ReminderScheduler.setHalfHour(c, call.getBoolean("halfHour", true));
+        if (call.hasOption("step")) ReminderScheduler.setStep(c, call.getInt("step", 20));
         ReminderScheduler.reschedule(c);
         call.resolve(status());
     }
@@ -171,6 +172,16 @@ public class ReminderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void keepAwake(PluginCall call) {
+        final boolean on = call.getBoolean("on", false);
+        if (getActivity() != null) getActivity().runOnUiThread(() -> {
+            if (on) getActivity().getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getActivity().getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        });
+        call.resolve();
+    }
+
+    @PluginMethod
     public void consumeOpen(PluginCall call) {
         android.content.SharedPreferences sp = getContext().getSharedPreferences("nav", Context.MODE_PRIVATE);
         String s = sp.getString("open", "");
@@ -261,7 +272,7 @@ public class ReminderPlugin extends Plugin {
         r.put("nextAt", ReminderScheduler.nextAt(c));
         r.put("playInSilent", ReminderScheduler.playInSilent(c));
         r.put("halfHour", ReminderScheduler.halfHour(c));
-        r.put("nextKind", ReminderScheduler.nextAt(c) == 0L ? 0 : ReminderScheduler.kindAt(ReminderScheduler.nextAt(c)));
+        r.put("nextKind", ReminderScheduler.nextAt(c) == 0L ? 0 : ReminderScheduler.kindAt(c, ReminderScheduler.nextAt(c)));
         r.put("notifications", NotificationManagerCompat.from(c).areNotificationsEnabled());
         r.put("exactAlarms", ReminderScheduler.canScheduleExact(c));
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);

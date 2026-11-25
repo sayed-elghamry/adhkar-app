@@ -267,7 +267,18 @@ let shSt = null;   // حالة التحميل من الجهاز
 function R() { return ctx && ctx.R; }
 function refreshShStatus() {
   if (!R() || !R().shamarlyStatus) return Promise.resolve(null);
-  return R().shamarlyStatus().then((st) => { shSt = st; return st; }).catch(() => null);
+  return R().shamarlyStatus().then((st) => {
+    shSt = st; shFiles = {};
+    (st.files || []).forEach((n) => { const l = parseInt(n, 10); if (!isNaN(l) && (!shFiles[l] || /webp$/.test(n))) shFiles[l] = n; });
+    return st;
+  }).catch(() => null);
+}
+let shFiles = {};   // الصفحات المحفوظة على الهاتف: رقم ← اسم الملف
+// حفظ الصفحة على الهاتف بعد قراءتها (مرة واحدة) حتى تفتح بعد ذلك بلا إنترنت
+function cachePage(leaf) {
+  if (leaf < 0 || leaf >= SH_LEAVES || shFiles[leaf] || !R() || !R().shamarlyCache) return;
+  shFiles[leaf] = leaf + '.webp';   // يُفترض النجاح؛ إن فشل يعود العرض للإنترنت تلقائيًا
+  R().shamarlyCache({ leaf }).catch(() => {});
 }
 // صفحات مدمجة داخل التطبيق (تُضاف وقت البناء)؛ إن لم توجد نعود للمحفوظ أو للإنترنت
 let shBundled = null;
@@ -279,8 +290,8 @@ function loadBundled() {
 }
 function localSrc(leaf) {
   if (shBundled && shBundled.has(leaf)) return 'shamarly/' + leaf + '.webp';
-  if (!shSt || !shSt.done || !window.Capacitor || !window.Capacitor.convertFileSrc) return null;
-  return window.Capacitor.convertFileSrc(shSt.dir + '/' + leaf + '.jpg');
+  if (!shSt || !shFiles[leaf] || !window.Capacitor || !window.Capacitor.convertFileSrc) return null;
+  return window.Capacitor.convertFileSrc(shSt.dir + '/' + shFiles[leaf]);
 }
 let shPoll = null;
 function renderShamIndex(m) {
@@ -297,7 +308,7 @@ function renderShamIndex(m) {
     const st = shSt || { done: 0, total: SH_LEAVES, running: false };
     const pct = Math.round(st.done / st.total * 100);
     body = '<div class="card"><b>تحميل المصحف للقراءة بلا إنترنت</b>' +
-      '<div class="sub" style="line-height:1.9;margin:6px 0">الحجم حوالي ٨٠ ميجا. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
+      '<div class="sub" style="line-height:1.9;margin:6px 0">كل صفحة تقرأها تُحفظ تلقائيًا على الهاتف. ولتحميل المصحف كله مرة واحدة (حوالي ٤٥ ميجا) اضغط الزر. اترك التطبيق مفتوحًا على شبكة واي فاي حتى يكتمل، وإن توقف يكمل من حيث انتهى.</div>' +
       '<div class="prog"><i style="width:' + pct + '%"></i></div><div class="sub" id="shDlTxt">' + AR(st.done) + ' / ' + AR(st.total) + ' صفحة' + (st.running ? ' · جارٍ التحميل…' : '') + (st.error ? ' · توقف بسبب الاتصال' : '') + '</div>' +
       '<div class="row" style="margin-top:10px;justify-content:flex-start;gap:8px">' +
         (st.running ? '<button class="ghost" id="shStop">إيقاف</button>' : (st.done < st.total ? '<button class="pri" id="shDl">' + (st.done ? 'استكمال التحميل' : 'تحميل الآن') + '</button>' : '<span style="color:var(--ok)">✓ المصحف محفوظ في الهاتف</span>')) +
@@ -423,6 +434,7 @@ function renderSham() {
   };
   img.onload = () => {
     if (msg.parentNode) msg.remove();
+    if (img.src.indexOf('archive.org') >= 0) { cachePage(leaf); cachePage(leaf + 1); }
     applyCrop(shCrop[leaf] || shLastCrop);
     detectCrop(img.src);
     // بعد ظهور النسخة السريعة، حمّل النسخة الواضحة واستبدلها
@@ -448,7 +460,7 @@ function renderSham() {
   // تحميل مسبق للصفحات المجاورة حتى يكون التقليب فوريًا
   [1, 2, 3, -1].forEach((d) => {
     const t = leaf + d;
-    if (t >= 0 && t < SH_LEAVES && !shLoaded[t] && !(shSt && shSt.done >= shSt.total) && !(shBundled && shBundled.has(t))) { const p = new Image(); p.onload = () => { shLoaded[t] = 1; }; p.src = shUrl(t, w); }
+    if (t >= 0 && t < SH_LEAVES && !shLoaded[t] && !(shSt && shSt.done >= shSt.total) && !(shBundled && shBundled.has(t)) && !shFiles[t]) { const p = new Image(); p.onload = () => { shLoaded[t] = 1; }; p.src = shUrl(t, w); }
   });
   const go = (d) => { const t = leaf + d; if (t >= 0 && t < SH_LEAVES) { sh.leaf = t; renderSham(); window.scrollTo(0, 0); } };
   document.getElementById('qNext').onclick = () => go(1);

@@ -209,6 +209,7 @@ public class ReminderPlugin extends Plugin {
         r.put("running", ShamarlyDownloader.running());
         r.put("error", ShamarlyDownloader.lastError());
         r.put("dir", ShamarlyDownloader.dir(getContext()).getAbsolutePath());
+        r.put("files", new com.getcapacitor.JSArray(ShamarlyDownloader.files(getContext())));
         call.resolve(r);
     }
 
@@ -216,6 +217,12 @@ public class ReminderPlugin extends Plugin {
     public void shamarlyDownload(PluginCall call) {
         ShamarlyDownloader.start(getContext());
         shamarlyStatus(call);
+    }
+
+    @PluginMethod
+    public void shamarlyCache(PluginCall call) {
+        ShamarlyDownloader.cacheOne(getContext(), call.getInt("leaf", -1));
+        call.resolve();
     }
 
     @PluginMethod

@@ -20,15 +20,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Cache Shamarly pages
-        uses: actions/cache@v4
-        with:
-          path: www/shamarly
-          key: shamarly-webp-v1
-      - name: Bundle Shamarly mushaf pages
-        run: |
-          pip install --quiet pillow
-          python3 scripts/fetch_shamarly.py
       - name: Install & sync
         run: |
           npm ci

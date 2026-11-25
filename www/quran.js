@@ -259,6 +259,9 @@ const SH_JUZ = [1, 19, 35, 51, 67, 83, 98, 115, 131, 147, 163, 180, 198, 215, 23
 // الصورة رقم n في archive.org = الصفحة n بهذا الترقيم، والرقم المطبوع أسفل الصفحة = n + ١
 const shPrinted = (leaf) => leaf + 1;
 function shSurahOf(leaf) { let i = 0; while (i + 1 < SH_SURA.length && SH_SURA[i + 1] <= leaf) i++; return i + 1; }
+// بداية كل ربع حزب (٢٤٠ ربعًا) في طبعة الشمرلي، من مشروع quran_android (GPL-3)
+const SH_Q = [1,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,38,40,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,84,86,89,91,92,94,96,98,100,102,105,107,109,111,114,115,117,119,120,122,125,127,129,131,134,136,138,140,142,144,146,147,150,152,154,156,157,159,161,163,165,167,169,171,174,176,178,180,182,184,186,188,190,193,195,198,200,202,204,206,208,210,212,215,217,220,222,224,226,228,230,232,234,236,238,241,243,246,247,249,251,254,256,259,261,263,265,267,269,271,273,275,277,279,281,283,286,288,290,292,294,296,299,301,303,305,307,309,312,314,316,319,320,323,324,327,329,331,333,335,337,340,342,344,347,349,350,352,354,356,358,360,362,365,367,369,371,373,376,378,380,382,385,387,389,391,393,395,397,400,401,403,405,407,409,411,414,416,419,422,424,426,429,431,433,435,437,439,442,444,446,448,451,454,456,458,460,463,465,468,470,473,475,477,479,481,484,487,490,492,495,497,500,502,504,507,510,513,516];
+function shHizbOf(leaf) { let i = 0; while (i + 1 < SH_Q.length && SH_Q[i + 1] <= leaf) i++; return Math.floor(i / 4) + 1; }
 function shJuzOf(leaf) { let i = 0; while (i + 1 < SH_JUZ.length && SH_JUZ[i + 1] <= leaf) i++; return i + 1; }
 let shSt = null;   // حالة التحميل من الجهاز
 function R() { return ctx && ctx.R; }
@@ -266,7 +269,16 @@ function refreshShStatus() {
   if (!R() || !R().shamarlyStatus) return Promise.resolve(null);
   return R().shamarlyStatus().then((st) => { shSt = st; return st; }).catch(() => null);
 }
+// صفحات مدمجة داخل التطبيق (تُضاف وقت البناء)؛ إن لم توجد نعود للمحفوظ أو للإنترنت
+let shBundled = null;
+function loadBundled() {
+  if (shBundled) return Promise.resolve();
+  return fetch('shamarly/index.json').then((r) => r.ok ? r.json() : null).then((j) => {
+    shBundled = new Set(j && j.leaves ? j.leaves : []);
+  }).catch(() => { shBundled = new Set(); });
+}
 function localSrc(leaf) {
+  if (shBundled && shBundled.has(leaf)) return 'shamarly/' + leaf + '.webp';
   if (!shSt || !shSt.done || !window.Capacitor || !window.Capacitor.convertFileSrc) return null;
   return window.Capacitor.convertFileSrc(shSt.dir + '/' + leaf + '.jpg');
 }
@@ -301,7 +313,7 @@ function renderShamIndex(m) {
     '<div class="card">' + edSwitch('sham') + '<div class="row"><b style="font-size:18px">مصحف الشمرلي</b>' +
       '<button class="pri" id="shOpen">متابعة القراءة · ص ' + AR(shPrinted(sh.leaf || 1)) + '</button></div>' +
     '<div class="q-tabs">' +
-      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].map(([k, t]) =>
+      [['surah', 'السور'], ['juz', 'الأجزاء'], ['marks', 'العلامات'], ['dl', 'بلا إنترنت']].filter(([k]) => k !== 'dl' || !(shBundled && shBundled.size >= 500)).map(([k, t]) =>
         '<button class="q-btn' + (idxTab === k ? ' on' : '') + '" data-t="' + k + '">' + t + '</button>').join('') +
     '</div></div>' + body +
     '<div class="q-credit">مصحف الشمرلي بخط محمد سعد إبراهيم «حداد»، نسخة مجانية يجوز نسخها وتداولها لغير الأغراض التجارية، مستضافة على archive.org.</div>';
@@ -340,7 +352,7 @@ function renderSham() {
   const wLow = 360;
   document.body.classList.add('reading');
   ctx.view.innerHTML =
-    '<div class="sh-head"><span>سورة ' + esc(surahName) + '</span><span>ص ' + AR(pageNo) + '</span><span>جزء ' + AR(shJuzOf(leaf)) + '</span></div>' +
+    '<div class="sh-head"><span>سورة ' + esc(surahName) + '</span><span>ص ' + AR(pageNo) + '</span><span>جزء ' + AR(shJuzOf(leaf)) + ' | حزب ' + AR(shHizbOf(leaf)) + '</span></div>' +
     '<div class="q-page" id="qPage" style="position:relative;padding:0;margin:0;border-radius:0;border-left:0;border-right:0;min-height:60vh;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;touch-action:pan-y">' +
       '<div id="shBox" style="position:relative;width:100%;overflow:hidden;transform-origin:center center;will-change:transform">' +
       '<img id="shImg" alt="" draggable="false" style="width:100%;height:auto;display:block" src="' + (localSrc(leaf) || (shLoaded[leaf] ? shUrl(leaf, w) : shUrl(leaf, wLow))) + '">' +
@@ -436,7 +448,7 @@ function renderSham() {
   // تحميل مسبق للصفحات المجاورة حتى يكون التقليب فوريًا
   [1, 2, 3, -1].forEach((d) => {
     const t = leaf + d;
-    if (t >= 0 && t < SH_LEAVES && !shLoaded[t] && !(shSt && shSt.done >= shSt.total)) { const p = new Image(); p.onload = () => { shLoaded[t] = 1; }; p.src = shUrl(t, w); }
+    if (t >= 0 && t < SH_LEAVES && !shLoaded[t] && !(shSt && shSt.done >= shSt.total) && !(shBundled && shBundled.has(t))) { const p = new Image(); p.onload = () => { shLoaded[t] = 1; }; p.src = shUrl(t, w); }
   });
   const go = (d) => { const t = leaf + d; if (t >= 0 && t < SH_LEAVES) { sh.leaf = t; renderSham(); window.scrollTo(0, 0); } };
   document.getElementById('qNext').onclick = () => go(1);
@@ -524,7 +536,7 @@ export function show(c) {
   ctx = c;
   ensureCss();
   if (!M) ctx.view.innerHTML = '<div class="card sub" style="text-align:center;padding:30px">جارٍ تحميل المصحف…</div>';
-  return Promise.all([mushaf(), refreshShStatus()]).then(() => {
+  return Promise.all([mushaf(), refreshShStatus(), loadBundled()]).then(() => {
     if (document.fonts && document.fonts.load) return document.fonts.load('22px "KFGQPC HAFS Uthmanic Script"').catch(() => {});
   }).then(render).catch((e) => {
     ctx.view.innerHTML = '<div class="card sub">تعذّر تحميل المصحف: ' + esc(e && e.message || e) + '</div>';

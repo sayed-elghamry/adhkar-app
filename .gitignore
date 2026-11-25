@@ -3,3 +3,4 @@ node_modules/
 *.keystore
 *.jks
 !android/app/adhkar-debug.keystore
+www/shamarly/

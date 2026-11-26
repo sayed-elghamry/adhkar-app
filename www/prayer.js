@@ -113,7 +113,14 @@
       var dow = day.getDay();
       // الجمعة: سورة الكهف والصلاة على النبي
       var ft = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0).getTime();
-      if (st.friday !== false && dow === 5 && ft > now) list.push({ t: ft, kind: 'note', id: 2, name: 'يوم الجمعة 🕌', text: 'لا تنسَ قراءة سورة الكهف، وأكثِر من الصلاة على النبي ﷺ', open: 'kahf' });
+      var HADITH = 'قال رسول الله ﷺ: «أكثروا الصلاة عليَّ يوم الجمعة وليلة الجمعة، فمن صلى عليَّ صلاةً صلى الله عليه بها عشرًا» (رواه البيهقي، وحسّنه الألباني)';
+      if (st.friday !== false && dow === 5 && ft > now) list.push({ t: ft, kind: 'note', id: 2, name: 'يوم الجمعة 🕌', text: 'لا تنسَ قراءة سورة الكهف، وأكثِر من الصلاة على النبي ﷺ. ' + HADITH, open: 'kahf' });
+      // ليلة الجمعة: بعد مغرب الخميس بنصف ساعة
+      var lt = t.maghrib.getTime() + 30 * 60000;
+      if (st.friday !== false && dow === 4 && lt > now) list.push({ t: lt, kind: 'note', id: 4, name: 'ليلة الجمعة 🌙 أكثِر من الصلاة على النبي ﷺ', text: HADITH });
+      // يوم الجمعة: تذكير ثانٍ بعد العصر (ساعة الإجابة) بالصلاة على النبي والدعاء
+      var at2 = t.asr.getTime() + 30 * 60000;
+      if (st.friday !== false && dow === 5 && at2 > now) list.push({ t: at2, kind: 'note', id: 5, name: 'آخر ساعة من يوم الجمعة 🤲', text: 'أكثِر من الصلاة على النبي ﷺ والدعاء، ففي الجمعة ساعة لا يوافقها عبد مسلم يسأل الله شيئًا إلا أعطاه إياه (متفق عليه)، وأرجى ما قيل فيها آخر ساعة بعد العصر.' });
       // الصيام: ليلة الاثنين والخميس، وليلة الأيام البيض (١٣ و١٤ و١٥ هجري)
       if (st.fast !== false) {
         var tom = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 12);

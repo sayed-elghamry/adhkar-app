@@ -238,13 +238,33 @@ var TABS=[
  {id:'times',n:'المواقيت',i:'🕌'},
  {id:'settings',n:'الإعدادات',i:'⚙'}
 ];
+var DUAS=[
+ {t:'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ زَوَالِ نِعْمَتِكَ، وَتَحَوُّلِ عَافِيَتِكَ، وَفُجَاءَةِ نِقْمَتِكَ، وَجَمِيعِ سَخَطِكَ',c:1,m:'رواه مسلم'},
+ {t:'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْبَرَصِ، وَالْجُنُونِ، وَالْجُذَامِ، وَمِنْ سَيِّئِ الْأَسْقَامِ',c:1,m:'رواه أبو داود والنسائي'},
+ {t:'اللَّهُمَّ إِنَّا نَعُوذُ بِكَ مِنْ مَوْتِ الْفَجْأَةِ',c:1,m:'دعاء عام، وفي الحديث: «موت الفجأة أخذة أسف» رواه أبو داود'},
+ {t:'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَدْمِ، وَأَعُوذُ بِكَ مِنَ التَّرَدِّي، وَأَعُوذُ بِكَ مِنَ الْغَرَقِ، وَالْحَرَقِ، وَالْهَرَمِ، وَأَعُوذُ بِكَ أَنْ يَتَخَبَّطَنِي الشَّيْطَانُ عِنْدَ الْمَوْتِ، وَأَعُوذُ بِكَ أَنْ أَمُوتَ فِي سَبِيلِكَ مُدْبِرًا، وَأَعُوذُ بِكَ أَنْ أَمُوتَ لَدِيغًا',c:1,m:'رواه أبو داود والنسائي'}
+];
+// أدعية وأذكار يضيفها المستخدم بنفسه
+function customDuas(){return (S.custom||[]).map(function(t,k){return {t:t,c:1,m:'من إضافتك',own:k+1}})}
+function addCustom(t,toDisplay){
+  t=String(t||'').trim();if(t.length<3)return false;
+  S.custom=S.custom||[];if(S.custom.indexOf(t)<0)S.custom.push(t);
+  if(toDisplay){var d=D();if(d.items.indexOf(t)<0)d.items.push(t)}
+  persist();syncDisplay();return true;
+}
+function delCustom(t){
+  S.custom=(S.custom||[]).filter(function(x){return x!==t});
+  var d=D(),k=d.items.indexOf(t);if(k>=0)d.items.splice(k,1);if(!d.items.length)d.items.push(SALAWAT[0]);
+  persist();syncDisplay();
+}
 var SECTIONS=[
  {id:'morning',n:'أذكار الصباح',s:'☀ الصباح',L:function(){return MORNING}},
  {id:'evening',n:'أذكار المساء',s:'☾ المساء',L:function(){return EVENING}},
  {id:'prayer',n:'أذكار بعد الصلاة',s:'◈ بعد الصلاة',L:function(){return AFTER_PRAYER}},
  {id:'sleep',n:'أذكار النوم',s:'☽ النوم',L:function(){return SLEEP}},
  {id:'wake',n:'أذكار الاستيقاظ',s:'✧ الاستيقاظ',L:function(){return WAKE}},
- {id:'various',n:'ذكر الله بصيغ متنوعة',s:'✦ أذكار متنوعة',L:function(){return VARIOUS}}
+ {id:'various',n:'ذكر الله بصيغ متنوعة',s:'✦ أذكار متنوعة',L:function(){return VARIOUS}},
+ {id:'duas',n:'أدعية مختارة',s:'🤲 أدعية',L:function(){return DUAS.concat(customDuas())}}
 ];
 function defaultSection(){var h=new Date().getHours();return h>=4&&h<12?'morning':h>=14&&h<21?'evening':h>=21||h<4?'sleep':'various'}
 
@@ -326,9 +346,6 @@ function tick(){
     if(kd===0)showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
     else showToast(kd===1?'أستغفر الله العظيم وأتوب إليه':'لا حول ولا قوة إلا بالله',kd===1?'istighfar.mp3':'hawqala.mp3');
   }
-  if(ten&&S.settings.half!==false&&(mm===30||mm===31)&&S.lastHour!==hk&&inWindow(d.getHours())&&d.getHours()!==S.settings.to){
-    S.lastHour=hk;persist();showToast(SALAWAT[Math.floor(Math.random()*SALAWAT.length)]);
-  }
 }
 setInterval(tick,15000);
 
@@ -402,7 +419,7 @@ function renderTimes(){
 function displayPool(){
   var a=[],seen={};
   function add(t){t=String(t).trim();if(t&&!seen[t]){seen[t]=1;a.push(t)}}
-  SALAWAT.forEach(add);COUNTER_TYPES.forEach(function(x){add(x.t)});VARIOUS.forEach(function(x){add(x.t)});
+  SALAWAT.forEach(add);COUNTER_TYPES.forEach(function(x){add(x.t)});VARIOUS.forEach(function(x){add(x.t)});DUAS.forEach(function(x){add(x.t)});(S.custom||[]).forEach(add);
   return a;
 }
 function D(){S.display=S.display||{items:[SALAWAT[0],'سبحان الله وبحمده، سبحان الله العظيم','أستغفر الله العظيم وأتوب إليه','لا حول ولا قوة إلا بالله'],bubble:false,interval:60};return S.display}
@@ -417,6 +434,7 @@ function displaySettingsHtml(){
   return '<div class="card"><b style="font-size:18px">أذكار الودجت والفقاعة</b>'+
    '<div class="sub" style="margin:6px 0">اختر الأذكار التي تظهر على الشاشة الرئيسية وفي الفقاعة الجانبية:</div>'+
    pool.map(function(t,i){return '<label class="sw" style="cursor:pointer"><span style="font-size:15px">'+esc(sh(t))+'</span><input type="checkbox" class="dItem" data-i="'+i+'" '+(d.items.indexOf(t)>=0?'checked':'')+'></label>'}).join('')+
+   '<div style="display:flex;gap:8px;margin:10px 0"><input id="dNew" placeholder="➕ أضف دعاء أو ذكر من عندك" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px;font:500 15px Tajawal"><button class="pri" id="dAdd">إضافة</button></div>'+
    (NATIVE?
     '<div class="sw"><span>فقاعة عائمة على جانب الشاشة<small class="sub" style="display:block">تظهر فوق كل التطبيقات. اسحبها لتحريكها، والمس مطوّلًا لتصغيرها.</small></span><input type="checkbox" id="dBubble" '+(d.bubble?'checked':'')+'></div>'+
     (d.bubble&&NS&&NS.canDrawOverlays===false?'<div class="chk"><span class="dot">!</span><span class="tx">اسمح بـ«الظهور فوق التطبيقات»<small>فعّل المفتاح بجوار «أذكار» ثم ارجع.</small></span><button class="pri" id="dOverlay">سماح</button></div>':'')+
@@ -427,6 +445,7 @@ function displaySettingsHtml(){
 }
 function bindDisplaySettings(){
   var d=D(),pool=displayPool();
+  if($('dAdd'))$('dAdd').onclick=function(){if(addCustom($('dNew').value,true))rerenderSettings()};
   Array.prototype.forEach.call(view.querySelectorAll('.dItem'),function(cb){cb.onchange=function(){
     var t=pool[+cb.getAttribute('data-i')],k=d.items.indexOf(t);
     if(cb.checked&&k<0)d.items.push(t);else if(!cb.checked&&k>=0)d.items.splice(k,1);
@@ -537,9 +556,13 @@ function renderList(id,items,title){
         '<div class="prog"><i style="width:'+pct+'%"></i></div><div class="sub">أُنجز '+ar(done)+' من '+ar(items.length)+'</div></div>';
   items.forEach(function(it,i){
     var got=st[i]||0,rem=Math.max(0,it.c-got),isDone=rem===0;
-    h+='<div class="z '+(isDone?'done':'')+'" data-i="'+i+'"><div class="t">'+esc(it.t)+(it.m?'<div class="meta">'+esc(it.m)+'</div>':'')+'</div><div class="badge">'+(isDone?'✓':ar(rem))+'</div></div>';
+    h+='<div class="z '+(isDone?'done':'')+'" data-i="'+i+'"><div class="t">'+esc(it.t)+(it.m?'<div class="meta">'+esc(it.m)+(it.own?' · <a href="#" class="xdel" data-del="'+(it.own-1)+'" style="color:var(--bad,#c0392b)">حذف</a>':'')+'</div>':'')+'</div><div class="badge">'+(isDone?'✓':ar(rem))+'</div></div>';
   });
+  if(id==='duas')h+='<div class="card"><b>➕ إضافة دعاء أو ذكر</b><textarea id="cNew" rows="3" placeholder="اكتب الدعاء أو الذكر هنا…" style="width:100%;box-sizing:border-box;margin-top:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px;font:500 16px Tajawal"></textarea>'+
+    '<label class="sw" style="cursor:pointer"><span>يظهر أيضًا في الودجت والفقاعة</span><input type="checkbox" id="cDisp" checked></label><button class="pri" id="cAdd">إضافة</button></div>';
   view.innerHTML=secChips()+h;
+  if($('cAdd'))$('cAdd').onclick=function(){if(addCustom($('cNew').value,$('cDisp').checked)){renderAdhkar();window.scrollTo(0,document.body.scrollHeight)}};
+  Array.prototype.forEach.call(view.querySelectorAll('.xdel'),function(a){a.onclick=function(e){e.preventDefault();e.stopPropagation();var t=(S.custom||[])[+a.getAttribute('data-del')];if(t&&confirm('حذف هذا الدعاء؟')){delCustom(t);renderAdhkar()}}});
   Array.prototype.forEach.call(view.querySelectorAll('#secChips .chip'),function(b){b.onclick=function(){sec=b.getAttribute('data-s');window.scrollTo(0,0);renderAdhkar()}});
   var on=view.querySelector('#secChips .on');if(on&&on.scrollIntoView)try{on.scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
   Array.prototype.forEach.call(view.querySelectorAll('.z'),function(el){
@@ -596,7 +619,7 @@ function renderSettings(){
     '<div class="sw"><span>منبّه قبل الفجر<small class="sub" style="display:block">بنغمة منبّه الهاتف ليوقظك قبل الأذان</small></span><select id="sPreFajr">'+[[0,'مقفول'],[5,'قبلها بـ٥ دقائق'],[10,'قبلها بـ١٠ دقائق'],[15,'قبلها بـ١٥ دقيقة']].map(function(x){return '<option value="'+x[0]+'"'+((s.preFajr||0)===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></div>'+
     '<div class="sw"><span>تذكير صلاة الضحى</span><input type="checkbox" id="sDuha" '+(s.duha!==false?'checked':'')+'></div>'+
     '<div class="sw"><span>بعد الشروق بـ</span><select id="sDuhaMin">'+mOpts(s.duhaMin==null?20:s.duhaMin,15,60,5)+'</select></div>'+
-    '<div class="sw"><span>تذكير الجمعة<small class="sub" style="display:block">سورة الكهف والصلاة على النبي ﷺ، الساعة ٩ صباحًا</small></span><input type="checkbox" id="sFri" '+(s.friday!==false?'checked':'')+'></div>'+
+    '<div class="sw"><span>تذكير الجمعة<small class="sub" style="display:block">ليلة الجمعة بعد المغرب بنصف ساعة: الإكثار من الصلاة على النبي ﷺ. ويوم الجمعة ٩ صباحًا: سورة الكهف، وبعد العصر: ساعة الإجابة</small></span><input type="checkbox" id="sFri" '+(s.friday!==false?'checked':'')+'></div>'+
     '<div class="sw"><span>تذكير الصيام<small class="sub" style="display:block">ليلة الاثنين والخميس والأيام البيض، الساعة ٩ مساءً</small></span><input type="checkbox" id="sFast" '+(s.fast!==false?'checked':'')+'></div>'+
     '<div class="row" style="justify-content:flex-start"><button class="ghost" id="testAdhan">جرّب الأذان</button></div>'+
    '</div>'+

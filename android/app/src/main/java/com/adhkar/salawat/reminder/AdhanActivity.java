@@ -20,9 +20,24 @@ import com.adhkar.salawat.R;
 
 /** شاشة الأذان: صورة مسجد، اسم الصلاة، وجرس لإيقاف الصوت. */
 public class AdhanActivity extends Activity {
+    private static java.lang.ref.WeakReference<AdhanActivity> open;
+
+    /** يُستدعى عند انتهاء الأذان: تُغلق الشاشة وتعود الهاتف لوضعه (ينطفئ وحده حسب إعداداته). */
+    static void closeAll() {
+        AdhanActivity a = open == null ? null : open.get();
+        if (a != null) a.runOnUiThread(a::finish);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (open != null && open.get() == this) open = null;
+        super.onDestroy();
+    }
+
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        open = new java.lang.ref.WeakReference<>(this);
         if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
         else getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -97,6 +112,7 @@ public class AdhanActivity extends Activity {
                 stopSound();
                 bell.setText("🔕");
                 hint.setText("تم إيقاف صوت الأذان");
+                bell.postDelayed(AdhanActivity.this::finish, 2000);
             }
         });
         close.setOnClickListener(new View.OnClickListener() {
@@ -109,6 +125,8 @@ public class AdhanActivity extends Activity {
             }
         });
         setContentView(root);
+        // أمان: لا تبقى الشاشة مفتوحة بعد مدة الأذان القصوى
+        root.postDelayed(this::finish, 250_000L);
     }
 
     private void stopSound() {

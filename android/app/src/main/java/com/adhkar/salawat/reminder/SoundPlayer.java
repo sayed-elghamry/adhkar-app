@@ -19,6 +19,37 @@ import com.adhkar.salawat.R;
  */
 public final class SoundPlayer {
     private static MediaPlayer current;
+    private static AudioManager focusAm;
+    private static Object focusReq;   // AudioFocusRequest (API 26+)
+
+    /** يطلب من التطبيقات الأخرى (الموسيقى، الفيديو) أن تتوقف مؤقتًا أثناء الذكر أو الأذان، ثم تكمل بعده. */
+    private static void requestFocus(Context c) {
+        abandonFocus();
+        AudioManager am = (AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
+        if (am == null) return;
+        focusAm = am;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                android.media.AudioFocusRequest r = new android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                    .setOnAudioFocusChangeListener(fc -> {})
+                    .build();
+                focusReq = r;
+                am.requestAudioFocus(r);
+            } else {
+                am.requestAudioFocus(null, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private static void abandonFocus() {
+        if (focusAm == null) return;
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 26 && focusReq != null) focusAm.abandonAudioFocusRequest((android.media.AudioFocusRequest) focusReq);
+            else focusAm.abandonAudioFocus(null);
+        } catch (Exception ignored) {}
+        focusAm = null; focusReq = null;
+    }
 
     private SoundPlayer() {}
 
@@ -65,6 +96,7 @@ public final class SoundPlayer {
             mp.setOnCompletionListener(p -> { release(p); finish.run(); });
             mp.setOnErrorListener((p, w, e) -> { release(p); finish.run(); return true; });
             mp.prepare();
+            requestFocus(c);
             mp.start();
             current = mp;
             // أمان: أنهِ بعد ٤٠ ثانية مهما حدث (نغمتا الصباح والمساء ~٣٠ ثانية)
@@ -78,7 +110,7 @@ public final class SoundPlayer {
 
     private static synchronized void release(MediaPlayer p) {
         try { p.release(); } catch (Exception ignored) {}
-        if (current == p) current = null;
+        if (current == p) { current = null; abandonFocus(); }
     }
 
     public static synchronized void stop() {

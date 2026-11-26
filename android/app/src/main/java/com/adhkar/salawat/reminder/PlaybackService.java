@@ -35,7 +35,7 @@ public class PlaybackService extends Service {
             if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
         } catch (Exception e) {
             try { NotificationManagerCompat.from(c).notify(notifId, kind == ReminderScheduler.K_ADHAN ? buildAdhan(c, title, text, true) : build(c, title, text, open, false)); } catch (SecurityException ignored) {}
-            SoundPlayer.play(c, kind, force, null);
+            SoundPlayer.play(c, kind, force, AdhanActivity::closeAll);
         }
     }
 
@@ -124,6 +124,7 @@ public class PlaybackService extends Service {
     }
 
     private void finish() {
+        AdhanActivity.closeAll();
         try {
             if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_DETACH); else stopForeground(false);
             // أبقِ الإشعار ظاهرًا لكن بدون زر الإيقاف

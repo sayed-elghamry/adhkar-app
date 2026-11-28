@@ -60,6 +60,16 @@
   function hijriDay(d) {
     try { return parseInt(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric' }).format(d), 10) || 0; } catch (e) { return 0; }
   }
+  // [الشهر، اليوم] بالتقويم الهجري (أم القرى)
+  function hijriMD(d) {
+    try {
+      var p = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { month: 'numeric', day: 'numeric' }).formatToParts(d), m = 0, dd = 0;
+      p.forEach(function (x) { if (x.type === 'month') m = +x.value; if (x.type === 'day') dd = +x.value; });
+      return [m, dd];
+    } catch (e) { return [0, 0]; }
+  }
+  // أيام يحرم صيامها: العيدان وأيام التشريق
+  function noFast(md) { return (md[0] === 10 && md[1] === 1) || (md[0] === 12 && md[1] >= 10 && md[1] <= 13); }
   function hijri(d) {
     try { return new Intl.DateTimeFormat('ar-EG-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d); } catch (e) { return ''; }
   }
@@ -124,14 +134,44 @@
       // الصيام: ليلة الاثنين والخميس، وليلة الأيام البيض (١٣ و١٤ و١٥ هجري)
       if (st.fast !== false) {
         var tom = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 12);
-        var hd = hijriDay(tom), why = [];
-        if (tom.getDay() === 1) why.push('صيام يوم الاثنين');
-        if (tom.getDay() === 4) why.push('صيام يوم الخميس');
-        if (hd >= 13 && hd <= 15) why.push('صيام الأيام البيض (' + AR(hd) + ' من الشهر الهجري)');
+        var hd = hijriDay(tom), tmd = hijriMD(tom), why = [];
+        // لا تذكير بالتطوع في رمضان ولا في أيام العيد والتشريق
+        if (tmd[0] !== 9 && !noFast(tmd)) {
+          if (tom.getDay() === 1) why.push('صيام يوم الاثنين');
+          if (tom.getDay() === 4) why.push('صيام يوم الخميس');
+          if (hd >= 13 && hd <= 15) why.push('صيام الأيام البيض (' + AR(hd) + ' من الشهر الهجري)');
+        }
         var nt = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 21, 0).getTime();
         if (why.length && nt > now) list.push({ t: nt, kind: 'note', id: 3, name: 'تذكير بالصيام غدًا', text: 'غدًا: ' + why.join('، و') + '. لا تنسَ نية الصيام والسحور، فإن في السحور بركة.' });
       }
     }
+    // المناسبات الهجرية ورمضان
+    if (st.occ !== false) {
+      for (var oi = 0; oi < 60; oi++) {
+        var od = new Date(d.getFullYear(), d.getMonth(), d.getDate() + oi, 12), ot = timesFor(loc, od);
+        var omd = hijriMD(od), nmd = hijriMD(new Date(od.getFullYear(), od.getMonth(), od.getDate() + 1, 12));
+        var eve = new Date(od.getFullYear(), od.getMonth(), od.getDate(), 20, 30).getTime();
+        var morn = new Date(od.getFullYear(), od.getMonth(), od.getDate(), 8, 0).getTime();
+        var add = function (t, name, text) { if (t > now) list.push({ t: t, kind: 'note', id: 6, name: name, text: text }); };
+        // ليلة اليوم المذكور (تذكير مساء اليوم السابق)
+        if (nmd[0] === 1 && nmd[1] === 9) add(eve, 'غدًا تاسوعاء 🌙', 'يُستحب صيام التاسع مع العاشر من المحرم، قال ﷺ: «لئن بقيت إلى قابل لأصومن التاسع» (رواه مسلم).');
+        if (nmd[0] === 1 && nmd[1] === 10) add(eve, 'غدًا يوم عاشوراء 🌙', 'قال ﷺ عن صيام يوم عاشوراء: «أحتسب على الله أن يكفّر السنة التي قبله» (رواه مسلم).');
+        if (nmd[0] === 12 && nmd[1] === 9) add(eve, 'غدًا يوم عرفة 🕋', 'قال ﷺ عن صيام يوم عرفة: «أحتسب على الله أن يكفّر السنة التي قبله والسنة التي بعده» (رواه مسلم). وأكثِر من الدعاء: «خير الدعاء دعاء يوم عرفة».');
+        if (nmd[0] === 9 && nmd[1] === 1) add(eve, 'غدًا أول أيام رمضان 🌙', 'اللهم أهلّه علينا بالأمن والإيمان، والسلامة والإسلام. لا تنسَ نية الصيام والسحور، «تسحّروا فإن في السحور بركة» (متفق عليه).');
+        if (nmd[0] === 9 && nmd[1] === 21) add(eve, 'العشر الأواخر من رمضان ✨', 'الليلة أول ليالي العشر الأواخر. قال ﷺ: «تحرّوا ليلة القدر في الوتر من العشر الأواخر» (رواه البخاري). وأكثِر من: «اللهم إنك عفو تحب العفو فاعفُ عني».');
+        // صباح اليوم نفسه
+        if (omd[0] === 1 && omd[1] === 1) add(morn, 'عام هجري جديد 🌙', 'كل عام وأنتم بخير. اللهم أهلّه علينا بالأمن والإيمان، والسلامة والإسلام.');
+        if (omd[0] === 12 && omd[1] === 1) add(morn, 'العشر الأوائل من ذي الحجة 🕋', 'قال ﷺ: «ما من أيام العمل الصالح فيهن أحب إلى الله من هذه الأيام» يعني العشر (رواه البخاري). أكثِر من التكبير والتهليل والتحميد والصيام.');
+        if (omd[0] === 12 && omd[1] === 10) add(morn, 'عيد الأضحى المبارك 🐑', 'تقبّل الله منا ومنكم. الله أكبر الله أكبر، لا إله إلا الله، والله أكبر الله أكبر، ولله الحمد.');
+        if (omd[0] === 10 && omd[1] === 1) add(morn, 'عيد الفطر المبارك 🌙', 'تقبّل الله منا ومنكم. ولا تنسَ: «من صام رمضان ثم أتبعه ستًّا من شوال كان كصيام الدهر» (رواه مسلم).');
+        if (omd[0] === 10 && omd[1] === 2) add(eve, 'صيام ست من شوال', 'تقدر تبدأ صيام الست من شوال من بكرة، متتابعة أو متفرقة خلال الشهر. «كان كصيام الدهر» (رواه مسلم).');
+        // سحور رمضان: قبل الفجر بـ٤٥ دقيقة
+        if (st.suhoor !== false && omd[0] === 9) { var sh = ot.fajr.getTime() - 45 * 60000; if (sh > now) list.push({ t: sh, kind: 'prefajr', name: 'وقت السحور 🌙', text: 'باقي ٤٥ دقيقة على أذان الفجر. «تسحّروا فإن في السحور بركة» (متفق عليه)' }); }
+      }
+    }
+    // منبّه واحد لكل لحظة: لو تطابق موعدان نؤخر الثاني دقيقة حتى لا يضيع
+    list.sort(function (a, b) { return a.t - b.t; });
+    for (var li = 1; li < list.length; li++) if (list[li].t <= list[li - 1].t) list[li].t = list[li - 1].t + 60000;
     // بيانات ودجت المواقيت على الشاشة الرئيسية (٤٠ يومًا)
     if (R.setWidgetTimes) {
       var wd = [];

@@ -64,6 +64,19 @@
             android:turnScreenOn="true"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
 
+        <!-- ودجت متابعة القراءة -->
+        <receiver
+            android:name=".reminder.ReadWidget"
+            android:label="المصحف: متابعة القراءة"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/read_widget_info" />
+        </receiver>
+
         <!-- ودجت مواقيت الصلاة -->
         <receiver
             android:name=".reminder.PrayerWidget"

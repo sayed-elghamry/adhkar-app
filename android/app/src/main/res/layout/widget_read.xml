@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rw_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp"
+    android:layoutDirection="rtl">
+    <ImageView
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@mipmap/ic_launcher_round" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/rw_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📖 متابعة القراءة"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:maxLines="1" />
+        <TextView
+            android:id="@+id/rw_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:text="اضغط لبدء القراءة"
+            android:textColor="#D9AC4E"
+            android:textSize="13sp"
+            android:maxLines="2" />
+    </LinearLayout>
+</LinearLayout>

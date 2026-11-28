@@ -79,6 +79,14 @@ body.reading header,body.reading nav{display:none}
 .th .ft{display:flex;align-items:center;gap:8px;padding:10px 12px}
 .th .ft div{flex:1}.th .ft b{display:block;font:700 15px 'Tajawal'}.th .ft small{color:var(--muted);font-size:12px}
 .q-page.dk .q-sura{color:inherit;border-color:#8a7440}.q-page.dk .q-foot{color:inherit;opacity:.7}
+.rc-bar{position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 74px);z-index:25;background:var(--card);border:1px solid var(--gold);border-radius:16px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+body.reading .rc-bar{bottom:calc(env(safe-area-inset-bottom) + 10px)}
+body.reading .sh-ctl.on ~ .rc-bar{bottom:calc(env(safe-area-inset-bottom) + 150px)}
+.rc-bar .r1{display:flex;align-items:center;gap:8px}
+.rc-bar select{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:7px;font:500 14px Tajawal}
+.rc-bar .pb{width:44px;height:44px;border-radius:50%;border:0;background:var(--green);color:#fff;font-size:18px}
+.rc-bar .lb{font-size:13px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.rc-bar .lb button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:5px 8px;font:500 12px Tajawal}
 .th .ft button{border:0;border-radius:10px;padding:8px 12px;font:600 13px 'Tajawal';background:var(--green);color:#fff}
 .th.on .ft button{background:transparent;color:var(--ok);font-weight:700}
 `;
@@ -158,6 +166,7 @@ function renderPage(m) {
   const q = Q();
   const n = Math.max(1, Math.min(m.pageCount, q.page | 0 || 1));
   q.page = n; q.last = Date.now(); ctx.persist(); trackRead('m' + n);
+  readWidget('madina', n, m.page(n).surahs.map((x) => x.nameAr).join('، '));
   const bmi = BM('madina').findIndex((b) => b.leaf === n);
   const th = shTheme(), dk = th[0] === 'dark' || th[0] === 'amoled';
   const juz = m.page(n).juz;
@@ -172,6 +181,7 @@ function renderPage(m) {
       '<button class="q-btn" id="qNext">→ التالية</button>' +
       '<button class="q-btn" id="qLook">🎨</button>' +
       '<button class="q-btn" id="qTaf">📖 تفسير</button>' +
+      '<button class="q-btn" id="qListen">🔊</button>' +
       '<button class="q-btn" id="qGo">انتقال</button>' +
       '<button class="q-btn" id="qPrev">السابقة ←</button>' +
     '</div>';
@@ -191,6 +201,9 @@ function renderPage(m) {
     bindThemes(el, () => { el.remove(); renderPage(m); });
   };
   document.getElementById('qTaf').onclick = () => showTafsir(m.page(n).ayahs, 'ص ' + AR(n));
+  const mAy = () => m.page(n).ayahs, mNext = () => { if (n < m.pageCount) { q.page = n + 1; renderPage(m); window.scrollTo(0, 0); } else stopAudio(); };
+  document.getElementById('qListen').onclick = () => startListening(mAy, mNext);
+  mountPlayer(mAy, mNext);
   document.getElementById('qGo').onclick = () => {
     const v = prompt('رقم الصفحة (١ – ٦٠٤)', String(n));
     if (!v) return;
@@ -372,6 +385,103 @@ function showTafsir(ayahs, title) {
     el.querySelector('#tafX').onclick = () => el.remove();
   }).catch(() => { el.firstChild.innerHTML = '<div class="sub">تعذّر تحميل التفسير.</div>'; });
 }
+/* ---------------- التلاوة ---------------- */
+// القراء من everyayah.com (ملف لكل آية). الاستماع من النت، والحفظ على الهاتف عند «تنزيل» فقط.
+const RECITERS = [
+  ['husary', 'محمود خليل الحصري', 'Husary_64kbps'],
+  ['minshawi', 'محمد صديق المنشاوي', 'Minshawy_Murattal_128kbps'],
+  ['mustafa', 'مصطفى إسماعيل', 'Mustafa_Ismail_48kbps'],
+  ['banna', 'محمود علي البنا', 'mahmoud_ali_al_banna_32kbps'],
+  ['basit', 'عبد الباسط عبد الصمد', 'Abdul_Basit_Murattal_64kbps']
+];
+const pad3 = (n) => String(n).padStart(3, '0');
+const ayName = (s, a) => pad3(s) + pad3(a);
+function rec() { return RECITERS.find((r) => r[0] === Q().rec) || RECITERS[0]; }
+const recFiles = {};   // folder → {dir, set}
+let recSt = null;
+function refreshRec() {
+  const f = rec()[2];
+  if (!R() || !R().audioStatus) return Promise.resolve();
+  return R().audioStatus({ folder: f }).then((st) => { recSt = st; recFiles[f] = { dir: st.dir, set: new Set(st.files || []) }; }).catch(() => {});
+}
+function ayUrl(name) {
+  const f = rec()[2], loc = recFiles[f];
+  if (loc && loc.set.has(name + '.mp3') && window.Capacitor && window.Capacitor.convertFileSrc) return window.Capacitor.convertFileSrc(loc.dir + '/' + name + '.mp3');
+  return 'https://everyayah.com/data/' + f + '/' + name + '.mp3';
+}
+// قائمة التشغيل لصفحة: البسملة قبل أول كل سورة (عدا الفاتحة والتوبة)
+function playlist(ayahs) {
+  const out = [];
+  ayahs.forEach((a) => {
+    if (a.number === 1 && a.surah.number !== 1 && a.surah.number !== 9) out.push({ n: '001001', a, bsm: true });
+    out.push({ n: ayName(a.surah.number, a.number), a });
+  });
+  return out;
+}
+const PL = { on: false, list: [], i: 0, audio: null, playing: false, cont: false };
+let recPoll = null;
+/** شريط الاستماع؛ getAyahs: آيات الصفحة الحالية، nextPage: ينتقل للصفحة التالية ويعيد الرسم */
+function mountPlayer(getAyahs, nextPage) {
+  const old = document.getElementById('rcBar'); if (old) old.remove();
+  if (!PL.on) return;
+  const bar = document.createElement('div'); bar.className = 'rc-bar'; bar.id = 'rcBar';
+  ctx.view.appendChild(bar);
+  const sp = document.createElement('div'); sp.style.height = '120px'; ctx.view.appendChild(sp);
+  PL.list = playlist(getAyahs());
+  if (PL.cont) { PL.cont = false; PL.i = 0; setTimeout(() => playAt(0), 50); }
+  const draw = () => {
+    const it = PL.list[PL.i], f = rec()[2], loc = recFiles[f];
+    const sn = it ? it.a.surah : null;
+    const names = sn ? surahNames(sn) : [];
+    const have = loc ? names.filter((n) => loc.set.has(n + '.mp3')).length : 0;
+    const dl = recSt && recSt.running && recSt.folder === f;
+    bar.innerHTML = '<div class="r1"><button class="pb" id="rcPlay">' + (PL.playing ? '⏸' : '▶') + '</button>' +
+      '<select id="rcSel">' + RECITERS.map((r) => '<option value="' + r[0] + '"' + (r[0] === rec()[0] ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select>' +
+      '<button class="q-btn" id="rcX">✕</button></div>' +
+      '<div class="lb"><span>' + (it ? (it.bsm ? 'البسملة' : 'سورة ' + esc(sn.nameAr) + ' · آية ' + AR(it.a.number)) : '') + '</span>' +
+      (R() && R().audioDownload && sn ? (dl ? '<span>جارٍ التنزيل ' + AR(recSt.done) + '/' + AR(recSt.total) + ' <button id="rcStop">إيقاف</button></span>'
+        : have >= names.length ? '<span>✓ السورة محفوظة <button id="rcDel">حذف</button></span>'
+        : '<button id="rcDl">⬇ تنزيل سورة ' + esc(sn.nameAr) + '</button>') : '') + '</div>';
+    bar.querySelector('#rcPlay').onclick = () => { if (PL.playing) { PL.audio.pause(); PL.playing = false; draw(); } else playAt(PL.i); };
+    bar.querySelector('#rcX').onclick = () => { stopAudio(); bar.remove(); };
+    bar.querySelector('#rcSel').onchange = (e) => { Q().rec = e.target.value; ctx.persist(); const was = PL.playing; refreshRec().then(() => { if (was) playAt(PL.i); else draw(); }); };
+    const b1 = bar.querySelector('#rcDl'); if (b1) b1.onclick = () => { R().audioDownload({ folder: f, names }).then((st) => { recSt = st; draw(); poll(); }).catch(() => {}); };
+    const b2 = bar.querySelector('#rcDel'); if (b2) b2.onclick = () => { if (confirm('حذف تلاوة سورة ' + sn.nameAr + ' من الهاتف؟')) R().audioDelete({ folder: f, names: names.filter((n) => n !== '001001') }).then(() => refreshRec()).then(draw).catch(() => {}); };
+    const b3 = bar.querySelector('#rcStop'); if (b3) b3.onclick = () => R().audioStop().then((st) => { recSt = st; draw(); }).catch(() => {});
+  };
+  const poll = () => {
+    clearInterval(recPoll);
+    recPoll = setInterval(() => {
+      if (!document.getElementById('rcBar')) { clearInterval(recPoll); return; }
+      refreshRec().then(() => { draw(); if (!(recSt && recSt.running)) clearInterval(recPoll); });
+    }, 1500);
+  };
+  const playAt = (i) => {
+    if (!PL.audio) {
+      PL.audio = new Audio();
+      PL.audio.onended = () => {
+        if (!document.getElementById('rcBar')) { PL.playing = false; return; }
+        if (PL.i + 1 < PL.list.length) playAt(PL.i + 1);
+        else { PL.playing = false; PL.cont = true; nextPage(); }
+      };
+      PL.audio.onerror = () => { PL.playing = false; const b = document.getElementById('rcBar'); if (b) { const l = b.querySelector('.lb span'); if (l) l.textContent = 'تعذّر التشغيل، تأكد من الإنترنت'; b.querySelector('#rcPlay').textContent = '▶'; } };
+    }
+    PL.i = i; const it = PL.list[i]; if (!it) return;
+    PL.audio.src = ayUrl(it.n); PL.audio.play().then(() => { PL.playing = true; draw(); }).catch(() => { PL.playing = false; draw(); });
+    draw();
+  };
+  PL.draw = draw; PL.playAt = playAt;
+  refreshRec().then(() => { draw(); if (recSt && recSt.running) poll(); });
+  draw();
+}
+function surahNames(sn) {
+  const out = sn.number !== 1 && sn.number !== 9 ? ['001001'] : [];
+  for (let k = 1; k <= sn.ayahCount; k++) out.push(ayName(sn.number, k));
+  return out;
+}
+function stopAudio() { PL.on = false; PL.cont = false; if (PL.audio) { PL.audio.pause(); } PL.playing = false; }
+function startListening(getAyahs, nextPage) { PL.on = true; PL.cont = true; mountPlayer(getAyahs, nextPage); }
+
 function sheet(html) {
   const el = document.createElement('div'); el.className = 'sh-sheet';
   el.innerHTML = '<div>' + html + '</div>';
@@ -548,6 +658,7 @@ function renderSham() {
   if (!sh.leaf) sh.leaf = 1;
   const leaf = Math.max(0, Math.min(SH_LEAVES - 1, sh.leaf));
   sh.leaf = leaf; ctx.persist(); trackRead('s' + leaf);
+  if (M) readWidget('sham', shPrinted(leaf), M.surahs[shSurahOf(leaf) - 1].nameAr);
   const pageNo = shPrinted(leaf);
   const surahName = M ? M.surahs[shSurahOf(leaf) - 1].nameAr : '';
   const bmi = BM().findIndex((b) => b.leaf === leaf);
@@ -570,6 +681,7 @@ function renderSham() {
         '<button class="q-btn" id="qHome">⌂ الرئيسية</button>' +
         '<button class="q-btn" id="qLook">🎨</button>' +
         '<button class="q-btn" id="qTaf">📖 التفسير</button>' +
+        '<button class="q-btn" id="qListen">🔊 استماع</button>' +
         '<button class="q-btn" id="qMark"' + (bmi >= 0 ? ' style="background:' + BM_DEF[bmi][1] + ';color:#fff;border-color:' + BM_DEF[bmi][1] + '"' : '') + '>🔖</button>' +
       '</div>' +
       '<div class="q-bar" style="margin-top:8px">' +
@@ -669,7 +781,7 @@ function renderSham() {
     const el = document.getElementById('shCtl'); el.classList.add('on');
     setTimeout(() => { if (!shCtl) { const e2 = document.getElementById('shCtl'); if (e2) e2.classList.remove('on'); } }, 2500);
   }
-  document.getElementById('qHome').onclick = () => { document.body.classList.remove('reading'); mode = 'index'; if (ctx.go) ctx.go('home'); };
+  document.getElementById('qHome').onclick = () => { stopAudio(); document.body.classList.remove('reading'); mode = 'index'; if (ctx.go) ctx.go('home'); };
   document.getElementById('qMark').onclick = () => {
     const el = sheet('<h3>حفظ ص ' + AR(pageNo) + ' في علامة</h3><div class="sub" style="text-align:center;margin-bottom:10px">اختر لون العلامة، أو اضغط مطولاً لتسميتها أو مسحها</div>' + BM().map((_, i) => bmCard(i, false)).join(''));
     bindBm(el, (i) => { const b = BM()[i]; b.leaf = leaf; b.at = Date.now(); ctx.persist(); el.remove(); renderSham(); }, () => { el.remove(); renderSham(); document.getElementById('qMark').click(); });
@@ -679,6 +791,9 @@ function renderSham() {
     bindThemes(el, () => { el.remove(); renderSham(); });
   };
   document.getElementById('qTaf').onclick = () => showTafsir(shAyahs(leaf), 'ص ' + AR(pageNo));
+  const sAy = () => shAyahs(leaf), sNext = () => { if (leaf + 1 < SH_LEAVES) { sh.leaf = leaf + 1; renderSham(); window.scrollTo(0, 0); } else stopAudio(); };
+  document.getElementById('qListen').onclick = () => { shCtl = false; const e = document.getElementById('shCtl'); if (e) e.classList.remove('on'); startListening(sAy, sNext); };
+  mountPlayer(sAy, sNext);
   // أول مرة: اعرض تحميل المصحف كله ليعمل بلا إنترنت
   if (R() && R().shamarlyDownload && !Q().shAsked && shSt && shSt.done < shSt.total && !shSt.running) {
     Q().shAsked = 1; ctx.persist();
@@ -752,6 +867,7 @@ function renderSham() {
 
 function render() {
   if (!M) return;
+  if (mode === 'index') stopAudio();
   if (mode !== 'sham') document.body.classList.remove('reading');
   document.querySelectorAll('.sh-sheet').forEach((e) => e.remove());
   if (mode === 'page') renderPage(M);
@@ -774,8 +890,22 @@ export function show(c) {
 export function back() {
   const sh = document.querySelector('.sh-sheet');
   if (sh) { sh.remove(); return true; }
-  if (mode !== 'index') { document.body.classList.remove('reading'); mode = 'index'; render(); window.scrollTo(0, 0); return true; }
+  if (mode !== 'index') { stopAudio(); document.body.classList.remove('reading'); mode = 'index'; render(); window.scrollTo(0, 0); return true; }
   return false;
+}
+
+/** من ودجت «متابعة القراءة»: افتح آخر صفحة مباشرة */
+export function openLast(c) {
+  ctx = c; ensureCss();
+  return mushaf().then(() => { mode = Q().ed === 'sham' ? 'sham' : 'page'; return show(c); });
+}
+// تحديث ودجت «متابعة القراءة» على الشاشة الرئيسية
+let rwLast = '';
+function readWidget(ed, page, surahName) {
+  if (!R() || !R().setReadWidget) return;
+  const sub = 'مصحف ' + (ed === 'sham' ? 'الشمرلي' : 'المدينة') + ' · ص ' + AR(page) + ' · سورة ' + surahName;
+  if (sub === rwLast) return; rwLast = sub;
+  R().setReadWidget({ title: '📖 متابعة القراءة', sub }).catch(() => {});
 }
 
 /** فتح سورة مباشرة (مثل الكهف يوم الجمعة) في الطبعة المختارة. */

@@ -220,6 +220,47 @@ public class ReminderPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setReadWidget(PluginCall call) {
+        ReadWidget.save(getContext(), call.getString("title", ""), call.getString("sub", ""));
+        call.resolve();
+    }
+
+    // ---- تلاوة القراء ----
+    private static java.util.List<String> strList(com.getcapacitor.JSArray a) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (a != null) for (int i = 0; i < a.length(); i++) { String v = a.optString(i, null); if (v != null) out.add(v); }
+        return out;
+    }
+
+    @PluginMethod
+    public void audioStatus(PluginCall call) {
+        String f = call.getString("folder", "");
+        JSObject r = new JSObject();
+        r.put("dir", AudioDownloader.dir(getContext(), f).getAbsolutePath());
+        r.put("files", new com.getcapacitor.JSArray(AudioDownloader.files(getContext(), f)));
+        r.put("running", AudioDownloader.running());
+        r.put("folder", AudioDownloader.folder());
+        r.put("done", AudioDownloader.done());
+        r.put("total", AudioDownloader.total());
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void audioDownload(PluginCall call) {
+        AudioDownloader.start(getContext(), call.getString("folder", ""), strList(call.getArray("names", new com.getcapacitor.JSArray())));
+        audioStatus(call);
+    }
+
+    @PluginMethod
+    public void audioStop(PluginCall call) { AudioDownloader.stop(); audioStatus(call); }
+
+    @PluginMethod
+    public void audioDelete(PluginCall call) {
+        AudioDownloader.delete(getContext(), call.getString("folder", ""), strList(call.getArray("names", new com.getcapacitor.JSArray())));
+        audioStatus(call);
+    }
+
+    @PluginMethod
     public void shamarlyStatus(PluginCall call) {
         if (call.hasOption("src")) ShamarlyDownloader.setSrc(call.getString("src"));
         JSObject r = new JSObject();

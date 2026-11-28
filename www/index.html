@@ -736,7 +736,7 @@ function checkUpdate(force){
 
 function checkOpen(){
   if(!Reminder||!Reminder.consumeOpen)return;
-  Reminder.consumeOpen().then(function(r){if(r&&r.section==='kahf'){if(tab==='times'&&window.Prayer)Prayer.leave();tab='quran';render();var c={S:S,persist:persist,view:view,R:Reminder,go:go};import('./quran.js').then(function(m){quranMod=m;m.openSurah(c,18)}).catch(function(){});return}if(r&&r.section==='times'){tab='times';window.scrollTo(0,0);render();return}if(r&&r.section){if(tab==='times'&&window.Prayer)Prayer.leave();tab='adhkar';sec=r.section;window.scrollTo(0,0);render()}}).catch(function(){});
+  Reminder.consumeOpen().then(function(r){if(r&&r.section==='kahf'){if(tab==='times'&&window.Prayer)Prayer.leave();tab='quran';render();var c={S:S,persist:persist,view:view,R:Reminder,go:go};import('./quran.js').then(function(m){quranMod=m;m.openSurah(c,18)}).catch(function(){});return}if(r&&r.section==='quran'){if(tab==='times'&&window.Prayer)Prayer.leave();tab='quran';render();var c2={S:S,persist:persist,view:view,R:Reminder,go:go};import('./quran.js').then(function(m){quranMod=m;m.openLast(c2)}).catch(function(){});return}if(r&&r.section==='times'){tab='times';window.scrollTo(0,0);render();return}if(r&&r.section){if(tab==='times'&&window.Prayer)Prayer.leave();tab='adhkar';sec=r.section;window.scrollTo(0,0);render()}}).catch(function(){});
 }
 
 /* ---------- البدء ---------- */

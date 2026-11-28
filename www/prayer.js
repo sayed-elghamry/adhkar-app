@@ -57,11 +57,18 @@
     var h = d.getHours(), m = d.getMinutes();
     return AR((h % 12 || 12) + ':' + String(m).padStart(2, '0')) + ' ' + (h >= 12 ? 'م' : 'ص');
   }
+  // تعديل يدوي للتاريخ الهجري (±٢ يوم) ليوافق رؤية الهلال في بلد المستخدم
+  function adjD(d) {
+    var a = ctx && ctx.S && ctx.S.settings ? (ctx.S.settings.hijriAdj | 0) : 0;
+    return a ? new Date(d.getTime() + a * 864e5) : d;
+  }
   function hijriDay(d) {
+    d = adjD(d);
     try { return parseInt(new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric' }).format(d), 10) || 0; } catch (e) { return 0; }
   }
   // [الشهر، اليوم] بالتقويم الهجري (أم القرى)
   function hijriMD(d) {
+    d = adjD(d);
     try {
       var p = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { month: 'numeric', day: 'numeric' }).formatToParts(d), m = 0, dd = 0;
       p.forEach(function (x) { if (x.type === 'month') m = +x.value; if (x.type === 'day') dd = +x.value; });
@@ -71,6 +78,7 @@
   // أيام يحرم صيامها: العيدان وأيام التشريق
   function noFast(md) { return (md[0] === 10 && md[1] === 1) || (md[0] === 12 && md[1] >= 10 && md[1] <= 13); }
   function hijri(d) {
+    d = adjD(d);
     try { return new Intl.DateTimeFormat('ar-EG-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' }).format(d); } catch (e) { return ''; }
   }
 
@@ -177,7 +185,7 @@
       var wd = [];
       for (var j = -1; j < 40; j++) {
         var dd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + j, 12), tt = timesFor(loc, dd), hs = '';
-        try { hs = new Intl.DateTimeFormat('ar-EG-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).format(dd).replace(/\s*هـ$/, ''); } catch (e) {}
+        try { hs = new Intl.DateTimeFormat('ar-EG-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).format(adjD(dd)).replace(/\s*هـ$/, ''); } catch (e) {}
         wd.push({ d: dd.getFullYear() + '-' + String(dd.getMonth() + 1).padStart(2, '0') + '-' + String(dd.getDate()).padStart(2, '0'), h: hs,
           t: [tt.fajr.getTime(), tt.dhuhr.getTime(), tt.asr.getTime(), tt.maghrib.getTime(), tt.isha.getTime()] });
       }
@@ -320,7 +328,7 @@
     show: function (c) { ctx = c; render(); },
     init: function (c) { ctx = c; syncAlarms(); },
     sync: function (c) { ctx = c; return syncAlarms(); },
-    hijri: function () { return hijri(new Date()); },
+    hijri: function (c) { if (c) ctx = c; return hijri(new Date()); },
     eveningAt: function (c) { ctx = c; var p = P(); var loc = p.lat == null ? { lat: 30.0444, lng: 31.2357, method: p.method, madhab: p.madhab } : p; var now = new Date(); var t = timesFor(loc, now); var e = new Date(t.maghrib.getTime() - 15 * 60000); if (e < now) { var tm = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12); e = new Date(timesFor(loc, tm).maghrib.getTime() - 15 * 60000); } return fmt(e) + (p.lat == null ? ' (حسب توقيت القاهرة، اختر مدينتك من «المواقيت»)' : ''); },   // عند بدء التطبيق: جدّد المواقيت للمنبّه
     next: function (c) { ctx = c; var p = P(); var n = nextPrayer(p); return n ? { name: n.name, time: fmt(n.at) } : null; },
     leave: function () { stopCompass(); clearInterval(tick); }

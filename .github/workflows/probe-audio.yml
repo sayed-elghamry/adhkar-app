@@ -7,14 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for f in Husary_Mujawwad_64kbps Husary_128kbps_Mujawwad Minshawy_Mujawwad_64kbps Minshawy_Mujawwad_192kbps Abdul_Basit_Mujawwad_128kbps; do
-            for a in 001001 002255 018001 114006; do echo "PROBE $f $a $(curl -s -o /dev/null -w '%{http_code} %{size_download}' --max-time 20 https://everyayah.com/data/$f/$a.mp3)"; done
-          done
-          curl -s --max-time 30 https://everyayah.com/recitations_ayat.html | grep -oiE 'data/[A-Za-z0-9_\.-]+' | sort -u | sed 's/^/LIST /'
-          curl -s --max-time 30 "https://mp3quran.net/api/v3/reciters?language=ar" | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)
-          for r in d['reciters']:
-              if any(k in r['name'] for k in ['البنا','مصطفى إسماعيل','المنشاوي','الحصري','عبدالباسط']):
-                  for m in r['moshaf']: print('MP3Q',r['name'],'|',m['name'],'|',m['server'],m['surah_total'])
-          "
+          curl -s --max-time 30 "https://mp3quran.net/api/v3/reciters?language=ar" -o r.json
+          printf '%s\n' "import json" "d=json.load(open('r.json'))" "for r in d['reciters']:" "    for m in r['moshaf']:" "        if any(k in r['name'] for k in ['البنا','مصطفى','المنشاوي','الحصري','عبدالباسط','عبد الباسط']): print('MP3Q', r['id'], r['name'], '|', m['name'], '|', m['server'], m['surah_total'])" > p.py
+          python3 p.py
+          curl -sI --max-time 20 https://server8.mp3quran.net/bna/001.mp3 | grep -iE "^HTTP|access-control|content-type" | sed 's/^/HDR /'

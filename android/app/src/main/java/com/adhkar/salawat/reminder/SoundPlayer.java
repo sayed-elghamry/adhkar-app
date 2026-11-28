@@ -23,21 +23,24 @@ public final class SoundPlayer {
     private static Object focusReq;   // AudioFocusRequest (API 26+)
 
     /** يطلب من التطبيقات الأخرى (الموسيقى، الفيديو) أن تتوقف مؤقتًا أثناء الذكر أو الأذان، ثم تكمل بعده. */
-    private static void requestFocus(Context c) {
+    private static void requestFocus(Context c, int kind) {
         abandonFocus();
         AudioManager am = (AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
         if (am == null) return;
         focusAm = am;
         try {
             if (android.os.Build.VERSION.SDK_INT >= 26) {
-                android.media.AudioFocusRequest r = new android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                    .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                // الأذان: إيقاف مؤقت للفيديو. الأذكار القصيرة: خفض صوته فقط (إلا لو اختار المستخدم الإيقاف)
+                boolean duck = kind != ReminderScheduler.K_ADHAN && ReminderScheduler.duck(c);
+                android.media.AudioFocusRequest r = new android.media.AudioFocusRequest.Builder(duck ? AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK : AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(new AudioAttributes.Builder().setUsage(duck ? AudioAttributes.USAGE_ASSISTANCE_SONIFICATION : AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                    .setWillPauseWhenDucked(false)
                     .setOnAudioFocusChangeListener(fc -> {})
                     .build();
                 focusReq = r;
                 am.requestAudioFocus(r);
             } else {
-                am.requestAudioFocus(null, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+                am.requestAudioFocus(null, AudioManager.STREAM_ALARM, kind != ReminderScheduler.K_ADHAN && ReminderScheduler.duck(c) ? AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK : AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
             }
         } catch (Exception ignored) {}
     }
@@ -96,7 +99,7 @@ public final class SoundPlayer {
             mp.setOnCompletionListener(p -> { release(p); finish.run(); });
             mp.setOnErrorListener((p, w, e) -> { release(p); finish.run(); return true; });
             mp.prepare();
-            requestFocus(c);
+            requestFocus(c, kind);
             mp.start();
             current = mp;
             // أمان: أنهِ بعد ٤٠ ثانية مهما حدث (نغمتا الصباح والمساء ~٣٠ ثانية)

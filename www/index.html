@@ -351,7 +351,7 @@ setInterval(tick,15000);
 
 function syncNative(){
   if(!Reminder)return Promise.resolve();
-  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false,step:stepMin()})
+  return Reminder.configure({enabled:!!S.settings.hourly,from:S.settings.from,to:S.settings.to,playInSilent:!!S.settings.loud,halfHour:S.settings.half!==false,step:stepMin(),duck:S.settings.duck!==false})
     .then(function(r){NS=r;return r}).catch(function(){});
 }
 function refreshNative(){
@@ -602,6 +602,7 @@ function renderSettings(){
     '<div class="sw"><span>المدة بين كل تنبيه<small class="sub" style="display:block">'+(stepMin()===60?'تنبيه كل ساعة':'تنبيه كل '+ar(stepMin())+' دقيقة')+'</small></span><select id="sStep">'+[10,20,30,40,50,60].map(function(v){return '<option value="'+v+'"'+(stepMin()===v?' selected':'')+'>'+(v===60?'كل ساعة':'كل '+ar(v)+' دقيقة')+'</option>'}).join('')+'</select></div>'+
     '<div class="sw"><span>من الساعة</span><select id="sFrom">'+hourOpts(s.from)+'</select></div>'+
     '<div class="sw"><span>إلى الساعة</span><select id="sTo">'+hourOpts(s.to)+'</select></div>'+
+    (NATIVE?'<div class="sw"><span>لو شغال فيديو أو موسيقى وقت التذكير<small class="sub" style="display:block">الأذان دائمًا يوقف الفيديو مؤقتًا ويرجع بعده</small></span><select id="sDuck"><option value="1"'+(s.duck!==false?' selected':'')+'>يوطّي صوته بس</option><option value="0"'+(s.duck===false?' selected':'')+'>يوقفه لحظة ويكمل</option></select></div>':'')+
     (NATIVE?'<div class="sw"><span>تشغيل الصوت حتى في الوضع الصامت<small class="sub" style="display:block">يُسمع على مستوى صوت المنبّه</small></span><input type="checkbox" id="sLoud" '+(s.loud?'checked':'')+'></div>':'')+
     '<div class="sw"><span class="sub" id="nextTxt2">'+esc(nextReminderText())+'</span></div><div class="row" style="flex-wrap:wrap;gap:6px;justify-content:flex-start"><button class="ghost" id="testRem2">جرّب الصلاة</button><button class="ghost" id="testIst">جرّب الاستغفار</button><button class="ghost" id="testHaw">جرّب الحوقلة</button></div>'+
    '</div>';
@@ -655,6 +656,7 @@ function renderSettings(){
   function bind(id,key,after){$(id).onchange=function(){s[key]=this.checked;persist();if(after)after()}}
   bind('sHourly','hourly',function(){syncNative().then(rerenderSettings)});
   if($('sLoud'))bind('sLoud','loud',function(){syncNative()});
+  if($('sDuck'))$('sDuck').onchange=function(){s.duck=this.value==='1';persist();syncNative()};
   bind('sHalf','half',function(){syncNative().then(rerenderSettings)});
   $('sStep').onchange=function(){s.step=+this.value;persist();syncNative().then(rerenderSettings)};
   function syncTimes(){if(window.Prayer&&window.adhan)Prayer.sync(pctx())}

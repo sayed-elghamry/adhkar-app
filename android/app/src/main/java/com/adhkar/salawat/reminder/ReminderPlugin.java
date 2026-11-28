@@ -43,6 +43,7 @@ public class ReminderPlugin extends Plugin {
         if (call.hasOption("playInSilent")) ReminderScheduler.setPlayInSilent(c, call.getBoolean("playInSilent", false));
         if (call.hasOption("halfHour")) ReminderScheduler.setHalfHour(c, call.getBoolean("halfHour", true));
         if (call.hasOption("step")) ReminderScheduler.setStep(c, call.getInt("step", 20));
+        if (call.hasOption("duck")) ReminderScheduler.setDuck(c, call.getBoolean("duck", true));
         ReminderScheduler.reschedule(c);
         call.resolve(status());
     }

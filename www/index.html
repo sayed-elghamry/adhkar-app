@@ -128,7 +128,9 @@ function today(){return dkey(new Date())}
 /* ---------- المحتوى ---------- */
 var COUNTER_TYPES=[
  {id:'salawat',t:'اللهم صل وسلم على نبينا محمد',s:'صلاة على النبي',target:100},
- {id:'subhan',t:'سبحان الله وبحمده',s:'سبحان الله',target:100},
+ {id:'subhan0',t:'سبحان الله',s:'سبحان الله',target:100,m:'«أيعجز أحدكم أن يكسب كل يوم ألف حسنة؟ يسبّح مائة تسبيحة، فيُكتب له ألف حسنة، أو يُحطّ عنه ألف خطيئة» رواه مسلم'},
+ {id:'subhan',t:'سبحان الله وبحمده',s:'سبحان الله وبحمده',target:100,m:'«من قال سبحان الله وبحمده في يوم مائة مرة، حُطّت خطاياه وإن كانت مثل زَبَد البحر» متفق عليه'},
+ {id:'subhanaz',t:'سبحان الله وبحمده، سبحان الله العظيم',s:'سبحان الله العظيم',target:100,m:'«كلمتان خفيفتان على اللسان، ثقيلتان في الميزان، حبيبتان إلى الرحمن: سبحان الله وبحمده، سبحان الله العظيم» متفق عليه'},
  {id:'hamd',t:'الحمد لله',s:'الحمد لله',target:100},
  {id:'tahlil',t:'لا إله إلا الله',s:'لا إله إلا الله',target:100},
  {id:'akbar',t:'الله أكبر',s:'الله أكبر',target:100},
@@ -491,6 +493,7 @@ function renderHome(){
    (NATIVE&&S.settings.hourly&&!setupOk()?'<div class="card banner"><div class="row"><span>لضمان وصول التذكير والهاتف مقفل، أكمل الإعداد (دقيقة واحدة).</span><button id="fixSetup">أكمل الإعداد</button></div></div>':'')+
    '<div class="card"><div class="chips" id="chips">'+COUNTER_TYPES.map(function(t){return '<button class="chip '+(t.id===cur.id?'on':'')+'" data-id="'+t.id+'">'+esc(t.s)+'</button>'}).join('')+'</div>'+
    '<div class="big">'+ring(n/target)+'<button class="tap" id="tap" aria-label="عدّ"><span class="n" id="cnt">'+ar(n)+'</span><span class="lbl">'+esc(cur.t)+'</span></button></div>'+
+   (cur.m?'<div class="sub" style="text-align:center;line-height:1.8;margin:-4px 0 8px">'+esc(cur.m)+'</div>':'')+
    '<div class="row"><span class="sub">الهدف اليومي: <b>'+ar(target)+'</b></span><span><button class="ghost" id="tgt">تغيير الهدف</button> <button class="ghost" id="rst">تصفير</button></span></div></div>'+
    '<div class="card stats"><div><b>'+ar(totalToday())+'</b><span>إجمالي اليوم</span></div><div><b>'+ar(grand(cur.id))+'</b><span>إجمالي «'+esc(cur.s)+'»</span></div><div><b>'+ar(streak())+'</b><span>أيام متتالية</span></div></div>'+
    '<div class="card"><div class="row"><b>📖 وِردك اليوم: '+ar(Math.min(wd,w.target))+' من '+ar(w.target)+' صفحة</b><button class="ghost" id="wTgt">تغيير</button></div>'+

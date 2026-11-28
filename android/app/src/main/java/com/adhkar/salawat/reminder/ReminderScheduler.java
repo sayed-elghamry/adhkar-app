@@ -111,8 +111,10 @@ public final class ReminderScheduler {
     public static void setPlayInSilent(Context c, boolean v) { prefs(c).edit().putBoolean(K_SILENT, v).apply(); }
     public static long nextAt(Context c) { return prefs(c).getLong(K_NEXT, 0L); }
     /** وقت التذكير: true = خفض صوت الفيديو/الموسيقى فقط، false = إيقافه مؤقتًا. */
-    public static boolean duck(Context c) { return prefs(c).getBoolean("duck", true); }
-    public static void setDuck(Context c, boolean v) { prefs(c).edit().putBoolean("duck", v).apply(); }
+    public static boolean duck(Context c) { return mediaMode(c) != 1; }
+    /** لو فيه فيديو أو موسيقى شغالة: 0 = خفض صوتها، 1 = إيقافها لحظة، 2 = إشعار بدون صوت ولا نلمس الفيديو. */
+    public static int mediaMode(Context c) { return prefs(c).getInt("media", prefs(c).getBoolean("duck", true) ? 0 : 1); }
+    public static void setMediaMode(Context c, int v) { prefs(c).edit().putInt("media", v < 0 || v > 2 ? 0 : v).apply(); }
     public static boolean halfHour(Context c) { return prefs(c).getBoolean(K_HALF, true); }
     public static void setHalfHour(Context c, boolean v) { prefs(c).edit().putBoolean(K_HALF, v).apply(); }
 

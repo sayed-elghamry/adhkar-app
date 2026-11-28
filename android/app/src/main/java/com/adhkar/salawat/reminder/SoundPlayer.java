@@ -72,6 +72,11 @@ public final class SoundPlayer {
         final Context c = ctx.getApplicationContext();
         final Runnable done = onDone != null ? onDone : () -> {};
         if (!force && !shouldPlay(c)) { done.run(); return; }
+        // اختيار «تنبيه بدون صوت» أثناء تشغيل فيديو/موسيقى (الأذان مستثنى)
+        if (!force && kind != ReminderScheduler.K_ADHAN && ReminderScheduler.mediaMode(c) == 2) {
+            AudioManager am0 = (AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
+            if (am0 != null && am0.isMusicActive()) { done.run(); return; }
+        }
         stop();
         PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
         final PowerManager.WakeLock wl = pm == null ? null

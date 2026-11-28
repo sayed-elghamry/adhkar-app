@@ -388,11 +388,14 @@ function showTafsir(ayahs, title) {
 /* ---------------- التلاوة ---------------- */
 // القراء من everyayah.com (ملف لكل آية). الاستماع من النت، والحفظ على الهاتف عند «تنزيل» فقط.
 const RECITERS = [
-  ['husary', 'محمود خليل الحصري', 'Husary_64kbps'],
-  ['minshawi', 'محمد صديق المنشاوي', 'Minshawy_Murattal_128kbps'],
+  ['husary', 'الحصري (مرتّل)', 'Husary_64kbps'],
+  ['husary_m', 'الحصري (مجوّد)', 'Husary_Mujawwad_64kbps'],
+  ['minshawi', 'المنشاوي (مرتّل)', 'Minshawy_Murattal_128kbps'],
+  ['minshawi_m', 'المنشاوي (مجوّد)', 'Minshawy_Mujawwad_64kbps'],
+  ['basit', 'عبد الباسط (مرتّل)', 'Abdul_Basit_Murattal_64kbps'],
+  ['basit_m', 'عبد الباسط (مجوّد)', 'Abdul_Basit_Mujawwad_128kbps'],
   ['mustafa', 'مصطفى إسماعيل', 'Mustafa_Ismail_48kbps'],
-  ['banna', 'محمود علي البنا', 'mahmoud_ali_al_banna_32kbps'],
-  ['basit', 'عبد الباسط عبد الصمد', 'Abdul_Basit_Murattal_64kbps']
+  ['banna', 'محمود علي البنا', 'mahmoud_ali_al_banna_32kbps']
 ];
 const pad3 = (n) => String(n).padStart(3, '0');
 const ayName = (s, a) => pad3(s) + pad3(a);

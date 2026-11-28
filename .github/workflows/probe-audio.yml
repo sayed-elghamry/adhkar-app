@@ -1,0 +1,20 @@
+name: probe-audio
+on:
+  push:
+    paths: ['.github/workflows/probe-audio.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for f in Husary_Mujawwad_64kbps Husary_128kbps_Mujawwad Minshawy_Mujawwad_64kbps Minshawy_Mujawwad_192kbps Abdul_Basit_Mujawwad_128kbps; do
+            for a in 001001 002255 018001 114006; do echo "PROBE $f $a $(curl -s -o /dev/null -w '%{http_code} %{size_download}' --max-time 20 https://everyayah.com/data/$f/$a.mp3)"; done
+          done
+          curl -s --max-time 30 https://everyayah.com/recitations_ayat.html | grep -oiE 'data/[A-Za-z0-9_\.-]+' | sort -u | sed 's/^/LIST /'
+          curl -s --max-time 30 "https://mp3quran.net/api/v3/reciters?language=ar" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          for r in d['reciters']:
+              if any(k in r['name'] for k in ['البنا','مصطفى إسماعيل','المنشاوي','الحصري','عبدالباسط']):
+                  for m in r['moshaf']: print('MP3Q',r['name'],'|',m['name'],'|',m['server'],m['surah_total'])
+          "
